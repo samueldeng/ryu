@@ -14,6 +14,7 @@
 # limitations under the License.
 
 import json
+import logging
 from webob import Response
 
 from ryu.app.wsgi import ControllerBase, WSGIApplication
@@ -39,6 +40,7 @@ from ryu.topology.switches import get_switch, get_link
 # where
 # <dpid>: datapath id in 16 hex
 
+LOG = logging.getLogger("RestToplogy_Logger")
 
 class TopologyController(ControllerBase):
     def __init__(self, req, link, data, **config):
@@ -59,6 +61,12 @@ class TopologyController(ControllerBase):
             dpid = dpid_lib.str_to_dpid(kwargs['dpid'])
         links = get_link(self.topology_api_app, dpid)
         body = json.dumps([link.to_dict() for link in links])
+
+        LOG.debug("rest_toplogy.py LOG\n\n\n\n\n\n\n")
+        LOG.debug(body)
+        LOG.debug("\n\n\n\n\n")
+
+
         return Response(content_type='application/json', body=body)
 
 

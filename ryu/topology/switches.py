@@ -42,15 +42,15 @@ LOG = logging.getLogger(__name__)
 
 CONF = cfg.CONF
 
-CONF.register_cli_opts([
-    cfg.BoolOpt('observe-links', default=False,
-                help='observe link discovery events.'),
-    cfg.BoolOpt('install-lldp-flow', default=True,
-                help='link discovery: explicitly install flow entry '
-                     'to send lldp packet to controller'),
-    cfg.BoolOpt('explicit-drop', default=True,
-                help='link discovery: explicitly drop lldp packet in')
-])
+# CONF.register_cli_opts([
+#     cfg.BoolOpt('observe-links', default=False,
+#                 help='observe link discovery events.'),
+#     cfg.BoolOpt('install-lldp-flow', default=True,
+#                 help='link discovery: explicitly install flow entry '
+#                      'to send lldp packet to controller'),
+#     cfg.BoolOpt('explicit-drop', default=False,
+#                 help='link discovery: explicitly drop lldp packet in')
+# ])
 
 
 class Port(object):
@@ -703,10 +703,10 @@ class Switches(app_manager.RyuApp):
             return
 
         old_peer = self.links.get_peer(src)
-        # LOG.debug("Packet-In")
-        # LOG.debug("  src=%s", src)
-        # LOG.debug("  dst=%s", dst)
-        # LOG.debug("  old_peer=%s", old_peer)
+        LOG.debug("Packet-In")
+        LOG.debug("  src=%s", src)
+        LOG.debug("  dst=%s", dst)
+        LOG.debug("  old_peer=%s", old_peer)
         if old_peer and old_peer != dst:
             old_link = Link(src, old_peer)
             self.send_event_to_observers(event.EventLinkDelete(old_link))

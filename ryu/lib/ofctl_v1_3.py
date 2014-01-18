@@ -745,7 +745,30 @@ def get_group_desc(dp, waiters):
     descs = {str(dp.id): descs}
     return descs
 
-
+#flow just like these.
+#
+# flow = {
+#     "actions": [
+#         {
+#             "field": "vlan_vid",
+#             "type": "SET_FIELD",
+#             "value": 10
+#         },
+#         {
+#             "port": 2,
+#             "type": "OUTPUT"
+#         },
+#         {
+#             "table_id": 3,
+#             "type": "GOTO_TABLE"
+#         }
+#     ],
+#     "dpid": "1",
+#     "match": {
+#         "ipv4_src": 10.0.0.1
+#     },
+#     "priority": "32768"
+# }
 def mod_flow_entry(dp, flow, cmd):
     cookie = int(flow.get('cookie', 0))
     cookie_mask = int(flow.get('cookie_mask', 0))
