@@ -15,3 +15,6 @@ GSYMS
 covhtml/
 coverage.xml
 nosetests.xml
+
+.idea/
+pbr*/
