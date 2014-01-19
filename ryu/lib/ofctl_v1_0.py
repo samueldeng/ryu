@@ -287,8 +287,16 @@ def mod_flow_entry(dp, flow, cmd):
     flags = int(flow.get('flags', 0))
     idle_timeout = int(flow.get('idle_timeout', 0))
     hard_timeout = int(flow.get('hard_timeout', 0))
+    LOG.debug("show actions")
+    LOG.debug(flow.get('actions'))
     actions = to_actions(dp, flow.get('actions', []))
+    LOG.debug("show matches")
+    LOG.debug(flow.get('match'))
     match = to_match(dp, flow.get('match', {}))
+
+    LOG.debug("after Convert:\n")
+    LOG.debug(actions)
+    LOG.debug(match)
 
     flow_mod = dp.ofproto_parser.OFPFlowMod(
         datapath=dp, match=match, cookie=cookie,
