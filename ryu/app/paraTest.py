@@ -80,7 +80,7 @@ class DataCenterRouter(app_manager.RyuApp):
                 "nw_dst": '10.0.0.1' #FIXME in ofctl_v1_3 is ipv4_src
             },
             'out_port': 1,
-            'action': [
+            'actions': [
                 {
                     "port": 1,
                     "type": "OUTPUT"
