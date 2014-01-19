@@ -136,7 +136,13 @@ class StatsController(ControllerBase):
         return (Response(content_type='application/json', body=body))
 
     def get_flow_stats(self, req, dpid, **_kwargs):
+
+        LOG.debug("enter get_flow_stats:ofctl_rest")
+        LOG.debug('\n\n\n')
         dp = self.dpset.get(int(dpid))
+        LOG.debug('\n\n\n')
+        LOG.debug(type(dp))
+
         if dp is None:
             return Response(status=404)
 
