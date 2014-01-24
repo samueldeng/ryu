@@ -77,7 +77,7 @@ class DataCenterRouter(app_manager.RyuApp):
             'table_id': 0,
             'priority': 32768,
             'match': {
-                "nw_dst": '10.0.0.1' #FIXME in ofctl_v1_3 is ipv4_src
+                "ipv4_src": '10.0.0.1' #FIXME in ofctl_v1_3 is ipv4_src
             },
             'out_port': 1,
             'actions': [
@@ -92,7 +92,7 @@ class DataCenterRouter(app_manager.RyuApp):
             'modif': ofproto_v1_3.OFPFC_MODIFY,
             'del': ofproto_v1_3.OFPFC_DELETE,
         }
-        ofctl_v1_0.mod_flow_entry(self.dpset[switch_foo_dpid], flow ,cmds['add'])
+        ofctl_v1_3.mod_flow_entry(self.dpset[switch_foo_dpid], flow ,cmds['add'])
 
         LOG.debug("succefully execute the mod_flow_entry\n\n\n")
 
