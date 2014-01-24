@@ -20,9 +20,7 @@ RFC 4271 BGP-4
 
 # todo
 # - notify data
-# - notify subcode constants
 # - RFC 4364 BGP/MPLS IP Virtual Private Networks (VPNs)
-# - RFC 4486 Subcodes for BGP Cease Notification Message
 
 import abc
 import struct
@@ -43,13 +41,52 @@ BGP_MSG_NOTIFICATION = 3
 BGP_MSG_KEEPALIVE = 4
 BGP_MSG_ROUTE_REFRESH = 5  # RFC 2918
 
-# RFC 4271 4.5.
+# NOTIFICATION Error Code and SubCode
+# Note: 0 is a valid SubCode.  (Unspecific)
+
+# NOTIFICATION Error Code  RFC 4271 4.5.
 BGP_ERROR_MESSAGE_HEADER_ERROR = 1
 BGP_ERROR_OPEN_MESSAGE_ERROR = 2
 BGP_ERROR_UPDATE_MESSAGE_ERROR = 3
 BGP_ERROR_HOLD_TIMER_EXPIRED = 4
 BGP_ERROR_FSM_ERROR = 5
 BGP_ERROR_CEASE = 6
+
+# NOTIFICATION Error Subcode for BGP_ERROR_MESSAGE_HEADER_ERROR
+BGP_ERROR_SUB_CONNECTION_NOT_SYNCHRONIZED = 1
+BGP_ERROR_SUB_BAD_MESSAGE_LENGTH = 2  # Data: the erroneous Length field
+BGP_ERROR_SUB_BAD_MESSAGE_TYPE = 3  # Data: the erroneous Type field
+
+# NOTIFICATION Error Subcode for BGP_ERROR_OPEN_MESSAGE_ERROR
+BGP_ERROR_SUB_UNSUPPORTED_VERSION_NUMBER = 1  # Data: 2 octet version number
+BGP_ERROR_SUB_BAD_PEER_AS = 2
+BGP_ERROR_SUB_BAD_BGP_IDENTIFIER = 3
+BGP_ERROR_SUB_UNSUPPORTED_OPTIONAL_PARAMETER = 4
+# 5 is deprecated RFC 1771 Authentication Failure
+BGP_ERROR_SUB_UNACCEPTABLE_HOLD_TIME = 6
+
+# NOTIFICATION Error Subcode for BGP_ERROR_UPDATE_MESSAGE_ERROR
+BGP_ERROR_SUB_MALFORMED_ATTRIBUTE_LIST = 1
+BGP_ERROR_SUB_UNRECOGNIZED_WELL_KNOWN_ATTRIBUTE = 2  # Data: type of the attr
+BGP_ERROR_SUB_MISSING_WELL_KNOWN_ATTRIBUTE = 3  # Data: ditto
+BGP_ERROR_SUB_ATTRIBUTE_FLAGS_ERROR = 4  # Data: the attr (type, len, value)
+BGP_ERROR_SUB_ATTRIBUTE_LENGTH_ERROR = 5  # Data: ditto
+BGP_ERROR_SUB_INVALID_ORIGIN_ATTRIBUTE = 6  # Data: ditto
+# 7 is deprecated RFC 1771 AS Routing Loop
+BGP_ERROR_SUB_INVALID_NEXT_HOP_ATTRIBUTE = 8  # Data: ditto
+BGP_ERROR_SUB_OPTIONAL_ATTRIBUTE_ERROR = 9  # Data: ditto
+BGP_ERROR_SUB_INVALID_NETWORK_FIELD = 10
+BGP_ERROR_SUB_MALFORMED_AS_PATH = 11
+
+# NOTIFICATION Error Subcode for BGP_ERROR_CEASE  (RFC 4486)
+BGP_ERROR_SUB_MAXIMUM_NUMBER_OF_PREFIXES_REACHED = 1  # Data: optional
+BGP_ERROR_SUB_ADMINISTRATIVE_SHUTDOWN = 2
+BGP_ERROR_SUB_PEER_DECONFIGURED = 3
+BGP_ERROR_SUB_ADMINISTRATIVE_RESET = 4
+BGP_ERROR_SUB_CONNECTION_RESET = 5
+BGP_ERROR_SUB_OTHER_CONFIGURATION_CHANGE = 6
+BGP_ERROR_SUB_CONNECTION_COLLISION_RESOLUTION = 7
+BGP_ERROR_SUB_OUT_OF_RESOURCES = 8
 
 _VERSION = 4
 _MARKER = 16 * '\xff'
@@ -90,6 +127,7 @@ BGP_COMMUNITY_NO_ADVERTISE = 0xffffff02
 BGP_COMMUNITY_NO_EXPORT_SUBCONFED = 0xffffff03
 
 # RFC 4360
+# The low-order octet of Type field (subtype)
 BGP_EXTENDED_COMMUNITY_ROUTE_TARGET = 0x02
 BGP_EXTENDED_COMMUNITY_ROUTE_ORIGIN = 0x03
 
@@ -103,8 +141,16 @@ class _AddrPrefix(StringifyMixin):
     __metaclass__ = abc.ABCMeta
     _PACK_STR = '!B'  # length
 
-    def __init__(self, length, addr):
+    def __init__(self, length, addr, prefixes=None):
+        # length is on-wire bit length of prefixes+addr.
+        assert prefixes != ()
+        if isinstance(addr, tuple):
+            # for _AddrPrefix.parser
+            # also for _VPNAddrPrefix.__init__ etc
+            (addr,) = addr
         self.length = length
+        if prefixes:
+            addr = prefixes + (addr,)
         self.addr = addr
 
     @staticmethod
@@ -158,19 +204,22 @@ class _BinAddrPrefix(_AddrPrefix):
 class _LabelledAddrPrefix(_AddrPrefix):
     _LABEL_PACK_STR = '!3B'
 
-    def __init__(self, length, addr, labels=[]):
+    def __init__(self, length, addr, labels=[], **kwargs):
         assert isinstance(labels, list)
-        if isinstance(addr, tuple):
+        is_tuple = isinstance(addr, tuple)
+        if is_tuple:
+            # for _AddrPrefix.parser
             assert not labels
-            our_addr = addr
-            our_length = length
+            labels = addr[0]
+            addr = addr[1:]
         else:
-            label_length = struct.calcsize(self._LABEL_PACK_STR) * 8 * \
-                len(labels)
-            our_length = label_length + length
-            our_addr = (labels, addr)
-        super(_LabelledAddrPrefix, self).__init__(length=our_length,
-                                                  addr=our_addr)
+            length += struct.calcsize(self._LABEL_PACK_STR) * 8 * len(labels)
+        assert length > struct.calcsize(self._LABEL_PACK_STR) * 8 * len(labels)
+        prefixes = (labels,)
+        super(_LabelledAddrPrefix, self).__init__(prefixes=prefixes,
+                                                  length=length,
+                                                  addr=addr,
+                                                  **kwargs)
 
     @classmethod
     def _label_to_bin(cls, label):
@@ -189,33 +238,36 @@ class _LabelledAddrPrefix(_AddrPrefix):
 
     @classmethod
     def _to_bin(cls, addr):
-        (labels, prefix) = addr
+        labels = addr[0]
+        rest = addr[1:]
         labels = map(lambda x: x << 4, labels)
         if labels:
             labels[-1] |= 1  # bottom of stack
         bin_labels = map(cls._label_to_bin, labels)
         return bytes(reduce(lambda x, y: x + y, bin_labels,
-                            bytearray()) + cls._prefix_to_bin(prefix))
+                            bytearray()) + cls._prefix_to_bin(rest))
 
     @classmethod
     def _from_bin(cls, addr):
+        rest = addr
         labels = []
         while True:
-            (label, addr) = cls._label_from_bin(addr)
+            (label, rest) = cls._label_from_bin(rest)
             labels.append(label >> 4)
             if label & 1:  # bottom of stack
                 break
-        return (labels, cls._prefix_from_bin(addr))
+        return (labels,) + cls._prefix_from_bin(rest)
 
 
 class _UnlabelledAddrPrefix(_AddrPrefix):
     @classmethod
     def _to_bin(cls, addr):
-        return cls._prefix_to_bin(addr)
+        return cls._prefix_to_bin((addr,))
 
     @classmethod
-    def _from_bin(cls, addr):
-        return cls._prefix_from_bin(addr)
+    def _from_bin(cls, binaddr):
+        (addr,) = cls._prefix_from_bin(binaddr)
+        return addr
 
 
 class _IPAddrPrefix(_AddrPrefix):
@@ -227,14 +279,49 @@ class _IPAddrPrefix(_AddrPrefix):
 
     @staticmethod
     def _prefix_to_bin(addr):
+        (addr,) = addr
         return addrconv.ipv4.text_to_bin(addr)
 
     @staticmethod
     def _prefix_from_bin(addr):
-        return addrconv.ipv4.bin_to_text(pad(addr, 4))
+        return (addrconv.ipv4.bin_to_text(pad(addr, 4)),)
 
 
-class LabelledIPAddrPrefix(_LabelledAddrPrefix, _IPAddrPrefix):
+class _VPNAddrPrefix(_AddrPrefix):
+    _RD_PACK_STR = '!Q'
+
+    def __init__(self, length, addr, prefixes=(), route_dist=0):
+        if isinstance(addr, tuple):
+            # for _AddrPrefix.parser
+            assert not route_dist
+            assert length > struct.calcsize(self._RD_PACK_STR) * 8
+            route_dist = addr[0]
+            addr = addr[1:]
+        else:
+            length += struct.calcsize(self._RD_PACK_STR) * 8
+        prefixes = prefixes + (route_dist,)
+        super(_VPNAddrPrefix, self).__init__(prefixes=prefixes,
+                                             length=length,
+                                             addr=addr)
+
+    @classmethod
+    def _prefix_to_bin(cls, addr):
+        rd = addr[0]
+        rest = addr[1:]
+        binrd = bytearray()
+        msg_pack_into(cls._RD_PACK_STR, binrd, 0, rd)
+        return binrd + super(_VPNAddrPrefix, cls)._prefix_to_bin(rest)
+
+    @classmethod
+    def _prefix_from_bin(cls, binaddr):
+        binrd = binaddr[:8]
+        binrest = binaddr[8:]
+        (rd,) = struct.unpack_from(cls._RD_PACK_STR, buffer(binrd))
+        return (rd,) + super(_VPNAddrPrefix, cls)._prefix_from_bin(binrest)
+
+
+class LabelledVPNIPAddrPrefix(_LabelledAddrPrefix, _VPNAddrPrefix,
+                              _IPAddrPrefix):
     pass
 
 
@@ -244,7 +331,7 @@ class IPAddrPrefix(_UnlabelledAddrPrefix, _IPAddrPrefix):
 
 _ADDR_CLASSES = {
     (afi.IP, safi.UNICAST): IPAddrPrefix,
-    (afi.IP, safi.MPLS_VPN): LabelledIPAddrPrefix,
+    (afi.IP, safi.MPLS_VPN): LabelledVPNIPAddrPrefix,
 }
 
 
