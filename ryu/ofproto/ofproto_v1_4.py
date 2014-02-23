@@ -314,6 +314,9 @@ OFPXMC_NXM_1 = 0x0001  # Backward compatibility with NXM
 OFPXMC_OPENFLOW_BASIC = 0x8000  # Basic class for OpenFlow
 OFPXMC_EXPERIMENTER = 0xFFFF  # Experimenter class
 
+# enum ofp_vlan_id
+OFPVID_PRESENT = 0x1000  # bit that indicate that a VLAN id is set.
+
 
 def _oxm_tlv_header(class_, field, hasmask, length):
     return (class_ << 16) | (field << 9) | (hasmask << 8) | length
@@ -408,8 +411,8 @@ OFPAT_EXPERIMENTER = 0xffff
 
 
 # struct ofp_action_header
-OFP_ACTION_HEADER_PACK_STR = '!HH'
-OFP_ACTION_HEADER_SIZE = 4
+OFP_ACTION_HEADER_PACK_STR = '!HH4x'
+OFP_ACTION_HEADER_SIZE = 8
 assert calcsize(OFP_ACTION_HEADER_PACK_STR) == OFP_ACTION_HEADER_SIZE
 
 # enum ofp_controller_max_len
@@ -601,6 +604,13 @@ OFPRR_GROUP_DELETE = 3  # Group was removed.
 OFPRR_METER_DELETE = 4  # Meter was removed.
 OFPRR_EVICTION = 5  # Switch eviction to free resources.
 
+# struct ofp_port_status
+OFP_PORT_STATUS_PACK_STR = '!B7x' + _OFP_PORT_PACK_STR
+OFP_PORT_STATUS_DESC_OFFSET = OFP_HEADER_SIZE + 8
+OFP_PORT_STATUS_SIZE = 56
+assert (calcsize(OFP_PORT_STATUS_PACK_STR) + OFP_HEADER_SIZE ==
+        OFP_PORT_STATUS_SIZE)
+
 # struct ofp_flow_removed
 _OFP_FLOW_REMOVED_PACK_STR0 = 'QHBBIIHHQQ'
 OFP_FLOW_REMOVED_PACK_STR = '!' + _OFP_FLOW_REMOVED_PACK_STR0 + \
@@ -649,6 +659,12 @@ OFPMF_KBPS = 1 << 0  # Rate value in kb/s (kilo-bit per second).
 OFPMF_PKTPS = 1 << 1  # Rate value in packet/sec.
 OFPMF_BURST = 1 << 2  # Do burst size.
 OFPMF_STATS = 1 << 3  # Collect statistics.
+
+# struct ofp_meter_band_header
+OFP_METER_BAND_HEADER_PACK_STR = '!HHII'
+OFP_METER_BAND_HEADER_SIZE = 12
+assert (calcsize(OFP_METER_BAND_HEADER_PACK_STR) ==
+        OFP_METER_BAND_HEADER_SIZE)
 
 # struct ofp_meter_mod
 OFP_METER_MOD_PACK_STR = '!HHI'
@@ -763,7 +779,7 @@ OFPBMC_EPERM = 11  # Permissions error.
 
 # enum ofp_flow_mod_failed_code
 OFPFMFC_UNKNOWN = 0  # Unspecified error.
-OFPFMFC_TABLES_FULL = 1  # Flow not added because table was full.
+OFPFMFC_TABLE_FULL = 1  # Flow not added because table was full.
 OFPFMFC_BAD_TABLE_ID = 2  # Table does not exist
 OFPFMFC_OVERLAP = 3  # Attempted to add overlapping flow with
                      # CHECK_OVERLAP flag set.
@@ -914,6 +930,11 @@ OFP_ERROR_EXPERIMENTER_MSG_SIZE = 16
 assert (calcsize(OFP_ERROR_EXPERIMENTER_MSG_PACK_STR) +
         OFP_HEADER_SIZE) == OFP_ERROR_EXPERIMENTER_MSG_SIZE
 
+# struct ofp_experimenter_header
+OFP_EXPERIMENTER_HEADER_PACK_STR = '!II'
+OFP_EXPERIMENTER_HEADER_SIZE = 16
+assert (calcsize(OFP_EXPERIMENTER_HEADER_PACK_STR) + OFP_HEADER_SIZE
+        == OFP_EXPERIMENTER_HEADER_SIZE)
 
 # enum ofp_multipart_type
 OFPMP_DESC = 0
@@ -1120,6 +1141,11 @@ OFP_BUCKET_COUNTER_PACK_STR = '!QQ'
 OFP_BUCKET_COUNTER_SIZE = 16
 assert calcsize(OFP_BUCKET_COUNTER_PACK_STR) == OFP_BUCKET_COUNTER_SIZE
 
+# struct ofp_group_desc_stats
+OFP_GROUP_DESC_STATS_PACK_STR = '!HBxI'
+OFP_GROUP_DESC_STATS_SIZE = 8
+assert calcsize(OFP_GROUP_DESC_STATS_PACK_STR) == OFP_GROUP_DESC_STATS_SIZE
+
 # struct ofp_group_stats
 OFP_GROUP_STATS_PACK_STR = '!H2xII4xQQII'
 OFP_GROUP_STATS_SIZE = 40
@@ -1151,6 +1177,12 @@ assert (calcsize(OFP_METER_MULTIPART_REQUEST_PACK_STR) ==
 OFP_METER_STATS_PACK_STR = '!IH6xIQQII'
 OFP_METER_STATS_SIZE = 40
 assert calcsize(OFP_METER_STATS_PACK_STR) == OFP_METER_STATS_SIZE
+
+# struct ofp_meter_band_stats
+OFP_METER_BAND_STATS_PACK_STR = '!QQ'
+OFP_METER_BAND_STATS_SIZE = 16
+assert (calcsize(OFP_METER_BAND_STATS_PACK_STR) ==
+        OFP_METER_BAND_STATS_SIZE)
 
 # struct ofp_meter_config
 OFP_METER_CONFIG_PACK_STR = '!HHI'
@@ -1334,6 +1366,11 @@ OFP_ROLE_STATUS_SIZE = 24
 assert (calcsize(OFP_ROLE_STATUS_PACK_STR) + OFP_HEADER_SIZE ==
         OFP_ROLE_STATUS_SIZE)
 
+# struct ofp_async_config
+OFP_ASYNC_CONFIG_PACK_STR = '!2I2I2I'
+OFP_ASYNC_CONFIG_SIZE = 32
+assert (calcsize(OFP_ASYNC_CONFIG_PACK_STR) + OFP_HEADER_SIZE ==
+        OFP_ASYNC_CONFIG_SIZE)
 
 # enum ofp_async_config_prop_type
 OFPACPT_PACKET_IN_SLAVE = 0  # Packet-in mask for slave.

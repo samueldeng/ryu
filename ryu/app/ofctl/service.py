@@ -45,16 +45,26 @@ class OfctlService(app_manager.RyuApp):
         datapath = ev.msg.datapath
         id = datapath.id
         assert isinstance(id, (int, long))
-        self.logger.info('add dpid %s datapath %s' % (id, datapath))
-        self._switches[datapath.id] = _SwitchInfo(datapath=datapath)
+        old_info = self._switches.get(id, None)
+        new_info = _SwitchInfo(datapath=datapath)
+        self.logger.debug('add dpid %s datapath %s new_info %s old_info %s' %
+                          (id, datapath, new_info, old_info))
+        self._switches[id] = new_info
 
     @set_ev_cls(ofp_event.EventOFPStateChange, DEAD_DISPATCHER)
     def _handle_dead(self, ev):
         datapath = ev.datapath
         id = datapath.id
-        self.logger.info('del dpid %s datapath %s' % (id, datapath))
-        datapath2 = self._switches.pop(id)
-        assert datapath2 == datapath
+        self.logger.debug('del dpid %s datapath %s' % (id, datapath))
+        if id is None:
+            return
+        try:
+            info = self._switches[id]
+        except KeyError:
+            return
+        if info.datapath is datapath:
+            self.logger.debug('forget info %s' % (info,))
+            self._switches.pop(id)
 
     @set_ev_cls(event.GetDatapathRequest, MAIN_DISPATCHER)
     def _handle_get_datapath(self, req):
@@ -64,7 +74,7 @@ class OfctlService(app_manager.RyuApp):
             datapath = self._switches[id].datapath
         except KeyError:
             datapath = None
-        self.logger.info('dpid %s -> datapath %s' % (id, datapath))
+        self.logger.debug('dpid %s -> datapath %s' % (id, datapath))
         rep = event.Reply(result=datapath)
         self.reply_to_request(req, rep)
 
@@ -114,4 +124,7 @@ class OfctlService(app_manager.RyuApp):
         except KeyError:
             self.logger.error('unknown dpid %s' % (datapath.id,))
             return
-        si.results[xid] = ev.msg
+        try:
+            si.results[msg.xid] = ev.msg
+        except KeyError:
+            self.logger.error('unknown error xid %s' % (msg.xid,))
