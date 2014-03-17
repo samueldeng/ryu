@@ -597,63 +597,63 @@ class Switches(app_manager.RyuApp):
                     self._link_down(port)
             self.lldp_event.set()
 
-    @set_ev_cls(ofp_event.EventOFPPortStatus, MAIN_DISPATCHER)
-    def port_status_handler(self, ev):
-        msg = ev.msg
-        reason = msg.reason
-        dp = msg.datapath
-        ofpport = msg.desc
-
-        if reason == dp.ofproto.OFPPR_ADD:
-            #LOG.debug('A port was added.' +
-            #          '(datapath id = %s, port number = %s)',
-            #          dp.id, ofpport.port_no)
-            self.port_state[dp.id].add(ofpport.port_no, ofpport)
-            self.send_event_to_observers(
-                event.EventPortAdd(Port(dp.id, dp.ofproto, ofpport)))
-
-            if not self.link_discovery:
-                return
-
-            port = self._get_port(dp.id, ofpport.port_no)
-            if port and not port.is_reserved():
-                self._port_added(port)
-                self.lldp_event.set()
-
-        elif reason == dp.ofproto.OFPPR_DELETE:
-            #LOG.debug('A port was deleted.' +
-            #          '(datapath id = %s, port number = %s)',
-            #          dp.id, ofpport.port_no)
-            self.port_state[dp.id].remove(ofpport.port_no)
-            self.send_event_to_observers(
-                event.EventPortDelete(Port(dp.id, dp.ofproto, ofpport)))
-
-            if not self.link_discovery:
-                return
-
-            port = self._get_port(dp.id, ofpport.port_no)
-            if port and not port.is_reserved():
-                self.ports.del_port(port)
-                self._link_down(port)
-                self.lldp_event.set()
-
-        else:
-            assert reason == dp.ofproto.OFPPR_MODIFY
-            #LOG.debug('A port was modified.' +
-            #          '(datapath id = %s, port number = %s)',
-            #          dp.id, ofpport.port_no)
-            self.port_state[dp.id].modify(ofpport.port_no, ofpport)
-            self.send_event_to_observers(
-                event.EventPortModify(Port(dp.id, dp.ofproto, ofpport)))
-
-            if not self.link_discovery:
-                return
-
-            port = self._get_port(dp.id, ofpport.port_no)
-            if port and not port.is_reserved():
-                if self.ports.set_down(port):
-                    self._link_down(port)
-                self.lldp_event.set()
+    # @set_ev_cls(ofp_event.EventOFPPortStatus, MAIN_DISPATCHER)
+    # def port_status_handler(self, ev):
+    #     msg = ev.msg
+    #     reason = msg.reason
+    #     dp = msg.datapath
+    #     ofpport = msg.desc
+    #
+    #     if reason == dp.ofproto.OFPPR_ADD:
+    #         #LOG.debug('A port was added.' +
+    #         #          '(datapath id = %s, port number = %s)',
+    #         #          dp.id, ofpport.port_no)
+    #         self.port_state[dp.id].add(ofpport.port_no, ofpport)
+    #         self.send_event_to_observers(
+    #             event.EventPortAdd(Port(dp.id, dp.ofproto, ofpport)))
+    #
+    #         if not self.link_discovery:
+    #             return
+    #
+    #         port = self._get_port(dp.id, ofpport.port_no)
+    #         if port and not port.is_reserved():
+    #             self._port_added(port)
+    #             self.lldp_event.set()
+    #
+    #     elif reason == dp.ofproto.OFPPR_DELETE:
+    #         #LOG.debug('A port was deleted.' +
+    #         #          '(datapath id = %s, port number = %s)',
+    #         #          dp.id, ofpport.port_no)
+    #         self.port_state[dp.id].remove(ofpport.port_no)
+    #         self.send_event_to_observers(
+    #             event.EventPortDelete(Port(dp.id, dp.ofproto, ofpport)))
+    #
+    #         if not self.link_discovery:
+    #             return
+    #
+    #         port = self._get_port(dp.id, ofpport.port_no)
+    #         if port and not port.is_reserved():
+    #             self.ports.del_port(port)
+    #             self._link_down(port)
+    #             self.lldp_event.set()
+    #
+    #     else:
+    #         assert reason == dp.ofproto.OFPPR_MODIFY
+    #         #LOG.debug('A port was modified.' +
+    #         #          '(datapath id = %s, port number = %s)',
+    #         #          dp.id, ofpport.port_no)
+    #         self.port_state[dp.id].modify(ofpport.port_no, ofpport)
+    #         self.send_event_to_observers(
+    #             event.EventPortModify(Port(dp.id, dp.ofproto, ofpport)))
+    #
+    #         if not self.link_discovery:
+    #             return
+    #
+    #         port = self._get_port(dp.id, ofpport.port_no)
+    #         if port and not port.is_reserved():
+    #             if self.ports.set_down(port):
+    #                 self._link_down(port)
+    #             self.lldp_event.set()
 
     @staticmethod
     def _drop_packet(msg):
