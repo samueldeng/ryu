@@ -10,42 +10,44 @@ REST_SERVER_ADDR = 'http://localhost:8080'
 DBADRESS = 'localhost'
 DBUSER = 'root'
 DBPASSWD = '897375'
-DBNAME = 'meshr'
+DBNAME = 'meshsrTopo'
 
-TOPO_PUSH_PERIOD = 5  # count as sec
+TOPO_PUSH_PERIOD = 10  # count as sec
 
 conn = MySQLdb.connect(host=DBADRESS, user=DBUSER, passwd=DBPASSWD, db=DBNAME)
 cursor = conn.cursor()
 
-dp_cord_x = dict(str, int)
-dp_cord_y = dict(str, int)
+dp_cord_x = dict()
+dp_cord_y = dict()
+dp_cord_x['0000000000000010'] = 0
+dp_cord_y['0000000000000010'] = 0
 
-dp_cord_x['000000000001'] = 0
-dp_cord_y['000000000001'] = 0
+dp_cord_x['0000000000000011'] = 0
+dp_cord_y['0000000000000011'] = 0
 
-dp_cord_x['000000000002'] = 0
-dp_cord_y['000000000002'] = 0
+dp_cord_x['0000000000000012'] = 0
+dp_cord_y['0000000000000012'] = 0
 
-dp_cord_x['000000000003'] = 0
-dp_cord_y['000000000003'] = 0
+dp_cord_x['0000000000000013'] = 0
+dp_cord_y['0000000000000013'] = 0
 
-dp_cord_x['000000000004'] = 0
-dp_cord_y['000000000004'] = 0
+dp_cord_x['0000000000000014'] = 0
+dp_cord_y['0000000000000014'] = 0
 
-dp_cord_x['000000000005'] = 0
-dp_cord_y['000000000005'] = 0
+dp_cord_x['0000000000000015'] = 0
+dp_cord_y['0000000000000015'] = 0
 
-dp_cord_x['000000000006'] = 0
-dp_cord_y['000000000006'] = 0
+dp_cord_x['0000000000000016'] = 0
+dp_cord_y['0000000000000016'] = 0
 
-dp_cord_x['000000000007'] = 0
-dp_cord_y['000000000007'] = 0
+dp_cord_x['0000000000000017'] = 0
+dp_cord_y['0000000000000017'] = 0
 
-dp_cord_x['000000000008'] = 0
-dp_cord_y['000000000008'] = 0
+dp_cord_x['0000000000000018'] = 0
+dp_cord_y['0000000000000018'] = 0
 
-dp_cord_x['000000000009'] = 0
-dp_cord_y['000000000009'] = 0
+dp_cord_x['0000000000000019'] = 0
+dp_cord_y['0000000000000019'] = 0
 
 
 while True:
@@ -57,37 +59,54 @@ while True:
     links_JSON = json.loads(response_links)
 
     # Delete All the items in the table to avoid the same switch and edge be inserted.
-    cursor.execute("DELETE FROM meshsr_node")
-    cursor.execute("DELETE FROM meshsr_connection")
+    cursor.execute("DELETE FROM phyLink")
+    cursor.execute("DELETE FROM ports")
+    cursor.execute("DELETE FROM switches")
 
     # Add all the switches and the link to the database.
     for switch in switches_JSON:
-        switch_dpid = switch['dpid']
-        description = str()
-        for ports in switch['ports']:
-            description += ports['name'] + '\n'
-            description += ports['hw_addr'] + '\n'
-            description += ports['port_no'] + '\n'
-            description += ports['dpid'] + '\n'
+        switch_dpid = switch['dpid'].encode()
+        sql = "INSERT INTO switches VALUE ('%s', '%s', '%s');" \
+              % (switch_dpid, dp_cord_x[switch_dpid], dp_cord_y[switch_dpid])
+        cursor.execute(sql)
 
-        x = str(dp_cord_x[switch_dpid])
-        y = str(dp_cord_y[switch_dpid])
-        sql_sentence = "INSERT INTO meshsr_node VALUES (NULL, '%s', '%s', '%s', '%s', '%s');" \
-                       % (switch_dpid, 0, x, y, str(description))
-        cursor.execute(sql_sentence)
+        for port in switch['ports']:
+            port_dpid = port['dpid'].encode()
+            port_name = port['name'].encode()
+            port_hw_addr = port['hw_addr'].encode()
+            port_port_no = port['port_no'].encode()
+            sql = "INSERT INTO ports VALUE (NULL, '%s', '%s', '%s', '%s');" \
+                  % (switch_dpid, port_name, port_hw_addr, port_port_no)
+            cursor.execute(sql)
+    conn.commit()
 
     for link in links_JSON:
         src = link['src']
+        src_dpid = src['dpid'].encode()
+        src_port_no = src['port_no'].encode()
+        src_hw_addr = src['hw_addr'].encode()
+        sql = "SELECT portID FROM ports WHERE dpid='%s' AND number='%s';" \
+              % (src_dpid, src_port_no)
+        count = cursor.execute(sql)
+        assert count == 1
+        result = cursor.fetchone()
+        src_port_id = result[0]
+
         dst = link['dst']
+        dst_dpid = dst['dpid'].encode()
+        dst_port_no = dst['port_no'].encode()
+        dst_hw_addr = dst['hw_addr'].encode()
+        sql = "SELECT portID FROM ports WHERE dpid='%s' AND number='%s';" \
+              % (dst_dpid, dst_port_no)
+        count = cursor.execute(sql)
+        assert count == 1
+        result = cursor.fetchone()
+        dst_port_id = result[0]
 
-        src_port = src['port_no']
-        dst_port = dst['port_no']
-        description = src_port + '-->' + dst_port
-
-        sql_sentence = "INSERT INTO meshsr_connection VALUES (NULL, '%s', '%s', '%s', '%s');" \
-                       % (src['dpid'], dst['dpid'], 0, description)
-        cursor.execute(sql_sentence)
-
+        sql = "INSERT INTO phyLink VALUE (NULL, %s, %s);" \
+              % (src_port_id, dst_port_id)
+        cursor.execute(sql)
     conn.commit()
+
     #Sleep for a while to avoid high load to SQLServer.
     sleep(TOPO_PUSH_PERIOD)
