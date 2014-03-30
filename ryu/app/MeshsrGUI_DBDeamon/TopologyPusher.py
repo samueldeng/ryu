@@ -10,7 +10,7 @@ REST_SERVER_ADDR = 'http://localhost:8080'
 DBADRESS = 'localhost'
 DBUSER = 'root'
 DBPASSWD = '897375'
-DBNAME = 'meshsrTopo'
+DBNAME = 'meshsr'
 
 TOPO_PUSH_PERIOD = 10  # count as sec
 
