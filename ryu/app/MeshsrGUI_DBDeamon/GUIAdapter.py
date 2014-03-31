@@ -16,6 +16,38 @@ cursor = conn.cursor()
 
 GUI_ADAPTER_REFRESH_PERIOD = 5
 
+
+def activate_link(cmplt_flow, ac_link):
+    ac_bid = ac_link["node"]
+    ac_eid = ac_link["peer"]
+
+    for flow in cmplt_flow:
+        _bid = flow["bid"]
+        _eid = flow["nid"]
+        _type = flow["type"]
+        assert _type == "dis"
+        if _bid == ac_bid and _eid == ac_eid:
+            flow["type"] = "con"
+        break
+
+
+# make the type from dis to conn in complete_flow
+def find_peerNICID_from_portID(portID):
+    _sql = "SELECT serNICID FROM serverNIC WHERE peer = %s" % portID
+    _cnt = cursor.execute(_sql)
+    assert _cnt == 1
+    _peerNICID = cursor.fetchone()
+    return _peerNICID[0]
+
+
+# find the owner of the port
+def find_dpid_from_port(portID):
+    _sql = "SELECT dpid FROM ports WHERE portID=%s" % portID
+    _cnt = cursor.execute(_sql)
+    assert _cnt == 1
+    dpid = cursor.fetchone()
+    return dpid[0]
+
 while True:
 
     # adapter for the meshsr_node
@@ -131,38 +163,27 @@ while True:
             out_port = entry[3]
             meter = entry[4]
 
-            # make the type from dis to conn in complete_flow
-            def find_peerNICID_from_port(port):
-                return None
-            # find the ownner of the port
-            def find_dpid_from_port(port):
-                return None
-
-            def activate_link(cmplt_flow, ac_link):
-                assertISInstance(cmplt_flow,list)
-                assertISInstance(ac_link,dict)
-
             if seq == 0:
                 cnt = cursor.execute("SELECT serNICID FROM serverNIC WHERE peer=%s") % in_port
                 assert cnt == 1
-                serNICID = cursor.fetchone()[0]
-                serNICID = find_peerNICID_from_port(in_port)
-                active_link = dict(node = serNICID, peer = curr_dpid)
+                serNICID = find_peerNICID_from_portID(in_port)
+                active_link = dict(node=serNICID, peer=curr_dpid)
                 # TODO stub of unimplemented func
                 activate_link(complete_flow, active_link)
                 prev_dpid = find_dpid_from_port(out_port)
 
-            elif seq != len(entries)-1:
+            elif seq != len(entries) - 1:
 
-                active_link = dict(node = prev_dpid, peer = curr_dpid)
+                active_link = dict(node=prev_dpid, peer=curr_dpid)
                 activate_link(complete_flow, activate_link)
                 prev_dpid = find_dpid_from_port(out_port)
-                
+
             else:
-                active_link = dict(node = prev_dpid, peer = curr_dpid)
+                active_link = dict(node=prev_dpid, peer=curr_dpid)
                 activate_link(complete_flow, activate_link)
                 # add the final server linking it.
-                serNICID = find_peerNICID_from_port(out_port)
-                active_link = dict(node = curr_dpid, peer = serNICID)
+                serNICID = find_peerNICID_from_portID(out_port)
+                active_link = dict(node=curr_dpid, peer=serNICID)
 
-    sleep(GUI_ADAPTER_REFRESH_PERIOD)
+        sleep(GUI_ADAPTER_REFRESH_PERIOD)
+
