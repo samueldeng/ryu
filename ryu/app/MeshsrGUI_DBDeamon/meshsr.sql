@@ -3,7 +3,7 @@
 -- http://www.phpmyadmin.net
 --
 -- Host: localhost
--- Generation Time: Mar 31, 2014 at 02:54 AM
+-- Generation Time: Apr 15, 2014 at 01:50 PM
 -- Server version: 5.5.35
 -- PHP Version: 5.4.4-14+deb7u8
 
@@ -63,11 +63,8 @@ CREATE TABLE IF NOT EXISTS `meshsr_connection` (
 --
 
 INSERT INTO `meshsr_connection` (`id`, `flow_info`, `connect_info`, `des`, `control_node`) VALUES
-(4, 'flow2', '[{"bid":"10","eid":"13","type":"con"},{"bid":"11","eid":"13","type":"dis"}]', 'flow2 info here', '[{"nid":"10","meter":"0"},{"nid":"13","meter":"0"}]'),
-(2, 'all', '[{"bid":"10","eid":"13","type":"con"},{"bid":"11","eid":"13","type":"con"}]', 'all flow info here', ''),
-(3, 'flow1', '[{"bid":"10","eid":"13","type":"dis"},{"bid":"11","eid":"13","type":"con"}]', 'flow1 info here', '[{"nid":"11","meter":"0"},{"nid":"13","meter":"0"}]'),
-(5, 'flow3', '[{"bid":"10","eid":"13","type":"con"},{"bid":"11","eid":"13","type":"con"}]', 'flow3 info here', '[{"nid":"10","meter":"0"},{"nid":"13","meter":"0"},{"nid":"11","meter":"0"}]'),
-(62, 'default', '[{"bid": "0000000000000010", "type": "dis", "eid": "0000000000000013"}, {"bid": "0000000000000013", "type": "dis", "eid": "0000000000000010"}, {"bid": "0000000000000013", "type": "dis", "eid": "0000000000000011"}, {"bid": "0000000000000011", "type": "dis", "eid": "0000000000000013"}, {"bid": "F000000000000001", "type": "dis", "eid": "0000000000000010"}, {"bid": "F000000000000003", "type": "dis", "eid": "0000000000000010"}, {"bid": "F000000000000004", "type": "dis", "eid": "0000000000000010"}, {"bid": "F000000000000005", "type": "dis", "eid": "0000000000000010"}]', 'physical links', '');
+(62, 'default', '[{"bid": "0000000000000010", "type": "dis", "eid": "0000000000000013"}, {"bid": "0000000000000013", "type": "dis", "eid": "0000000000000010"}, {"bid": "0000000000000013", "type": "dis", "eid": "0000000000000011"}, {"bid": "0000000000000011", "type": "dis", "eid": "0000000000000013"}, {"bid": "F000000000000001", "type": "dis", "eid": "0000000000000010"}, {"bid": "F000000000000003", "type": "dis", "eid": "0000000000000010"}, {"bid": "F000000000000004", "type": "dis", "eid": "0000000000000010"}, {"bid": "F000000000000005", "type": "dis", "eid": "0000000000000010"}]', 'physical links', ''),
+(4, 'flow2', '[{"bid":"10","eid":"13","type":"con"},{"bid":"11","eid":"13","type":"dis"}]', 'flow2 info here', '[{"nid":"0000000000000010","meter":"198"},{"nid":"0000000000000012","meter":"6"}]');
 
 -- --------------------------------------------------------
 
@@ -114,17 +111,19 @@ CREATE TABLE IF NOT EXISTS `phyLink` (
   PRIMARY KEY (`phyLinkID`),
   KEY `srcPort` (`srcPort`),
   KEY `dstPort` (`dstPort`)
-) ENGINE=InnoDB  DEFAULT CHARSET=latin1 AUTO_INCREMENT=68 ;
+) ENGINE=InnoDB  DEFAULT CHARSET=latin1 AUTO_INCREMENT=326 ;
 
 --
 -- Dumping data for table `phyLink`
 --
 
 INSERT INTO `phyLink` (`phyLinkID`, `srcPort`, `dstPort`) VALUES
-(64, 2460, 2468),
-(65, 2468, 2460),
-(66, 2467, 2463),
-(67, 2463, 2467);
+(320, 3162, 3154),
+(321, 3154, 3162),
+(322, 3157, 3161),
+(323, 3159, 3167),
+(324, 3161, 3157),
+(325, 3167, 3159);
 
 -- --------------------------------------------------------
 
@@ -140,37 +139,29 @@ CREATE TABLE IF NOT EXISTS `ports` (
   `number` int(11) NOT NULL,
   PRIMARY KEY (`portID`),
   KEY `dpid` (`dpid`)
-) ENGINE=InnoDB  DEFAULT CHARSET=latin1 AUTO_INCREMENT=2481 ;
+) ENGINE=InnoDB  DEFAULT CHARSET=latin1 AUTO_INCREMENT=3169 ;
 
 --
 -- Dumping data for table `ports`
 --
 
 INSERT INTO `ports` (`portID`, `dpid`, `name`, `MAC`, `number`) VALUES
-(2457, '0000000000000010', 'eth1', '00:0a:35:01:00:01', 1),
-(2458, '0000000000000010', 'eth2', '00:0a:35:01:00:02', 2),
-(2459, '0000000000000010', 'eth3', '00:0a:35:01:00:03', 3),
-(2460, '0000000000000010', 'eth4', '00:0a:35:01:00:04', 4),
-(2461, '0000000000000011', 'eth1', '00:0a:35:01:01:01', 1),
-(2462, '0000000000000011', 'eth2', '00:0a:35:01:01:02', 2),
-(2463, '0000000000000011', 'eth3', '00:0a:35:01:01:03', 3),
-(2464, '0000000000000011', 'eth4', '00:0a:35:01:01:04', 4),
-(2465, '0000000000000013', 'eth1', '00:0a:35:01:03:01', 1),
-(2466, '0000000000000013', 'eth2', '00:0a:35:01:03:02', 2),
-(2467, '0000000000000013', 'eth3', '00:0a:35:01:03:03', 3),
-(2468, '0000000000000013', 'eth4', '00:0a:35:01:03:04', 4),
-(2469, '0000000000000014', 'eth1', '00:0a:35:01:04:01', 1),
-(2470, '0000000000000014', 'eth2', '00:0a:35:01:04:02', 2),
-(2471, '0000000000000014', 'eth3', '00:0a:35:01:04:03', 3),
-(2472, '0000000000000014', 'eth4', '00:0a:35:01:04:04', 4),
-(2473, '0000000000000015', 'eth1', '00:0a:35:01:05:01', 1),
-(2474, '0000000000000015', 'eth2', '00:0a:35:01:05:02', 2),
-(2475, '0000000000000015', 'eth3', '00:0a:35:01:05:03', 3),
-(2476, '0000000000000015', 'eth4', '00:0a:35:01:05:04', 4),
-(2477, '0000000000000017', 'eth1', '00:0a:35:01:07:01', 1),
-(2478, '0000000000000017', 'eth2', '00:0a:35:01:07:02', 2),
-(2479, '0000000000000017', 'eth3', '00:0a:35:01:07:03', 3),
-(2480, '0000000000000017', 'eth4', '00:0a:35:01:07:04', 4);
+(3153, '0000000000000010', 'eth1', '00:0a:35:01:00:01', 1),
+(3154, '0000000000000010', 'eth2', '00:0a:35:01:00:02', 2),
+(3155, '0000000000000010', 'eth3', '00:0a:35:01:00:03', 3),
+(3156, '0000000000000010', 'eth4', '00:0a:35:01:00:04', 4),
+(3157, '0000000000000011', 'eth1', '00:0a:35:01:01:01', 1),
+(3158, '0000000000000011', 'eth2', '00:0a:35:01:01:02', 2),
+(3159, '0000000000000011', 'eth3', '00:0a:35:01:01:03', 3),
+(3160, '0000000000000011', 'eth4', '00:0a:35:01:01:04', 4),
+(3161, '0000000000000012', 'eth1', '00:0a:35:01:02:01', 1),
+(3162, '0000000000000012', 'eth2', '00:0a:35:01:02:02', 2),
+(3163, '0000000000000012', 'eth3', '00:0a:35:01:02:03', 3),
+(3164, '0000000000000012', 'eth4', '00:0a:35:01:02:04', 4),
+(3165, '0000000000000013', 'eth1', '00:0a:35:01:03:01', 1),
+(3166, '0000000000000013', 'eth2', '00:0a:35:01:03:02', 2),
+(3167, '0000000000000013', 'eth3', '00:0a:35:01:03:03', 3),
+(3168, '0000000000000013', 'eth4', '00:0a:35:01:03:04', 4);
 
 -- --------------------------------------------------------
 
@@ -185,16 +176,6 @@ CREATE TABLE IF NOT EXISTS `serverNIC` (
   PRIMARY KEY (`serNICID`),
   KEY `peer` (`peer`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-
---
--- Dumping data for table `serverNIC`
---
-
-INSERT INTO `serverNIC` (`serNICID`, `peer`, `MAC`) VALUES
-('F000000000000001', 2457, '94:de:80:86:d3:dd'),
-('F000000000000003', 2458, '94:de:80:86:d3:de'),
-('F000000000000004', 2457, '94:de:80:86:d3:d4'),
-('F000000000000005', 2458, '94:de:80:86:d3:d3');
 
 -- --------------------------------------------------------
 
@@ -216,10 +197,8 @@ CREATE TABLE IF NOT EXISTS `switches` (
 INSERT INTO `switches` (`dpid`, `x`, `y`) VALUES
 ('0000000000000010', 0, 0),
 ('0000000000000011', 0, 0),
-('0000000000000013', 0, 0),
-('0000000000000014', 0, 0),
-('0000000000000015', 0, 0),
-('0000000000000017', 0, 0);
+('0000000000000012', 0, 0),
+('0000000000000013', 0, 0);
 
 --
 -- Constraints for dumped tables
@@ -237,8 +216,8 @@ ALTER TABLE `flowEntry`
 -- Constraints for table `phyLink`
 --
 ALTER TABLE `phyLink`
-  ADD CONSTRAINT `phyLink_ibfk_2` FOREIGN KEY (`dstPort`) REFERENCES `ports` (`portID`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  ADD CONSTRAINT `phyLink_ibfk_1` FOREIGN KEY (`srcPort`) REFERENCES `ports` (`portID`) ON DELETE NO ACTION ON UPDATE NO ACTION;
+  ADD CONSTRAINT `phyLink_ibfk_1` FOREIGN KEY (`srcPort`) REFERENCES `ports` (`portID`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  ADD CONSTRAINT `phyLink_ibfk_2` FOREIGN KEY (`dstPort`) REFERENCES `ports` (`portID`) ON DELETE NO ACTION ON UPDATE NO ACTION;
 
 --
 -- Constraints for table `ports`
