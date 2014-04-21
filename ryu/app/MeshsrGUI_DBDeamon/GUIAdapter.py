@@ -12,10 +12,10 @@ DBPASSWD = '897375'
 DBNAME = 'meshsr'
 
 conn = MySQLdb.connect(host=DBADRESS, user=DBUSER, passwd=DBPASSWD, db=DBNAME)
-conn.autocommit()
+conn.autocommit(True)
 cursor = conn.cursor()
 
-GUI_ADAPTER_REFRESH_PERIOD = 5
+GUI_ADAPTER_REFRESH_PERIOD = 10
 
 
 def activate_link(cmplt_flow, ac_link):
@@ -24,12 +24,10 @@ def activate_link(cmplt_flow, ac_link):
 
     for flow in cmplt_flow:
         _bid = flow["bid"]
-        _eid = flow["nid"]
-        _type = flow["type"]
-        assert _type == "dis"
+        _eid = flow["eid"]
         if _bid == ac_bid and _eid == ac_eid:
             flow["type"] = "con"
-        break
+            return cmplt_flow
 
 
 # make the type from dis to conn in complete_flow
@@ -89,16 +87,16 @@ def push_phy_link():
         # link_dp[0]:phyLinkID(int11)
         # link_dp[1]:srcPort(int11)
         # link_dp[1]:dstPort(int11)
-        linkID = link_dp[0]
-        srcPort = link_dp[1]
-        dstPort = link_dp[2]
+        link_id = link_dp[0]
+        src_port = link_dp[1]
+        dst_port = link_dp[2]
 
-        sql = "SELECT dpid FROM ports WHERE portID=%s" % srcPort
+        sql = "SELECT dpid FROM ports WHERE portID=%s" % src_port
         cnt = cursor.execute(sql)
         assert cnt == 1
         src_dpid = cursor.fetchone()[0]
 
-        sql = "SELECT dpid FROM ports WHERE portID=%s" % dstPort
+        sql = "SELECT dpid FROM ports WHERE portID=%s" % dst_port
         cnt = cursor.execute(sql)
         assert cnt == 1
         dst_dpid = cursor.fetchone()[0]
@@ -108,8 +106,8 @@ def push_phy_link():
         )
 
     cursor.execute("SELECT * FROM serverNIC")
-    links_NIC = cursor.fetchall()
-    for link_NIC in links_NIC:
+    links_network_card_interface = cursor.fetchall()
+    for link_NIC in links_network_card_interface:
         assert len(link_NIC) == 3
         # link_NIC[0]:serNICID(char16)
         # link_NIC[1]:peer(int11)
@@ -129,71 +127,88 @@ def push_phy_link():
     sql = "INSERT INTO meshsr_connection VALUE (NULL, 'default', '%s','physical links','')" \
           % (json.dumps(default_flow))
     cursor.execute(sql)
+    return default_flow
 
 
- # def push_flows():
- #    # adapter for every single flow in meshsr_connection
- #    cursor.execute("DELETE FROM meshsr_connection WHERE flow_info != 'default';")
- #    flowIDs = list()
- #
- #    flowIDs_num = cursor.execute("SELECT DISTINCT flowID FROM flowEntry")
- #    assert flowIDs_num != 0
- #    # TODO assuming that there must be entries.
- #    resu_flowIDs = cursor.fetchall()
- #    for f in resu_flowIDs:
- #        flowIDs.append(f[0])
- #
- #    for flow in flowIDs:
- #        sql = "SELECT flowSeqNum, dpid, inPort, outPort, meterValue FROM flowEntry WHERE flowID=%s ORDER BY flowSeqNum" % flow
- #        cnt = cursor.execute(sql)
- #        assert cnt != 0
- #        entries = cursor.fetchall()
- #
- #        complete_flow = list(default_flow)
- #
- #        # complete_flow = list({
- #        #     "bid": None
- #        #     "eid": None
- #        #     "type": None
- #        # })
- #        prev_dpid = None
- #        for entry in entries:
- #            seq = entry[0]
- #            curr_dpid = entry[1]
- #            in_port = entry[2]
- #            out_port = entry[3]
- #            meter = entry[4]
- #
- #            if seq == 0:
- #                serNICID = find_peerNICID_from_portID(in_port)
- #                active_link = dict(node=serNICID, peer=curr_dpid)
- #                activate_link(complete_flow, active_link)
- #                prev_dpid = curr_dpid
- #
- #            elif seq != len(entries) - 1:
- #                active_link = dict(node=prev_dpid, peer=curr_dpid)
- #                activate_link(complete_flow, activate_link)
- #                prev_dpid = curr_dpid
- #
- #            else:
- #                active_link = dict(node=prev_dpid, peer=curr_dpid)
- #                activate_link(complete_flow, activate_link)
- #                # add the final server linking it.
- #                serNICID = find_peerNICID_from_portID(out_port)
- #                active_link = dict(node=curr_dpid, peer=serNICID)
- #        print complete_flow
- #        sql = "INSERT INTO meshsr_connection VALUE (NULL, 'default', '%s','physical links','')" % (
- #            json.dumps(complete_flow))
- #        cursor.execute(sql)
+def push_flows(default_flow):
+    # adapter for every single flow in meshsr_connection
+    cursor.execute("DELETE FROM meshsr_connection WHERE flow_info != 'default';")
+    flow_ids = list()
+
+    flow_ids_num = cursor.execute("SELECT DISTINCT flowID FROM flowEntry")
+    assert flow_ids_num != 0
+    # TODO assuming that there must be entries.
+    resu_flowIDs = cursor.fetchall()
+    for f in resu_flowIDs:
+        flow_ids.append(f[0])
+
+    for flow in flow_ids:
+        sql = "SELECT flowSeqNum, dpid, inPort, outPort, meterValue FROM flowEntry " \
+              "WHERE flowID=%s ORDER BY flowSeqNum" % flow
+        cnt = cursor.execute(sql)
+        assert cnt != 0
+        entries = cursor.fetchall()
+        print entries
+
+        # add single_flow into database
+        complete_flow = list(default_flow)
+        # complete_flow = list({
+        #     "bid": None
+        #     "eid": None
+        #     "type": None
+        # })
+        prev_dpid = None
+        for entry in entries:
+            seq = entry[0]
+            curr_dpid = entry[1]
+            in_port = entry[2]
+            out_port = entry[3]
+            meter = entry[4]
+
+            if seq == 0:
+                serNICID = find_peerNICID_from_portID(in_port)
+                active_link = dict(node=serNICID, peer=curr_dpid)
+                complete_flow = activate_link(complete_flow, active_link)
+                prev_dpid = curr_dpid
+                #print complete_flow
+
+            elif seq != len(entries) - 1:
+                active_link = dict(node=prev_dpid, peer=curr_dpid)
+                complete_flow = activate_link(complete_flow, active_link)
+                prev_dpid = curr_dpid
+                #print complete_flow
+
+            else:
+                active_link = dict(node=prev_dpid, peer=curr_dpid)
+                complete_flow = activate_link(complete_flow, active_link)
+                # add the final server linking it.
+                print out_port
+                serNICID = find_peerNICID_from_portID(out_port)
+                active_link = dict(node=curr_dpid, peer=serNICID)
+                #print complete_flow
+
+        # Add the Meter Value into Database.
+        control_node = list()
+        for entry in entries:
+            curr_dpid = entry[1]
+            meter_value = entry[4]
+
+            control_node.append(dict(nid=curr_dpid, meter=meter_value))
+
+
+        sql = "INSERT INTO meshsr_connection VALUE (NULL, 'flow%s', '%s','hello_simple_flow','%s')" % (
+            flow, json.dumps(complete_flow), json.dumps(control_node))
+        cursor.execute(sql)
 
 
 def main():
     push_all_nodes()
-    push_phy_link()
-    #push_flows()
+    default_flow = push_phy_link()
+    push_flows(default_flow)
 
 
-if __name__ == "main":
-    while True:
-        main()
-        sleep(GUI_ADAPTER_REFRESH_PERIOD)
+cursor.execute("DELETE FROM meshsr_node")
+cursor.execute("DELETE FROM meshsr_connection")
+while True:
+    main()
+    sleep(GUI_ADAPTER_REFRESH_PERIOD)
