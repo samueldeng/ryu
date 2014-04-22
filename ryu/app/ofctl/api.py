@@ -16,6 +16,7 @@
 
 # client for ryu.app.ofctl.service
 
+from ryu.base import app_manager
 import event
 
 
@@ -28,8 +29,13 @@ def get_datapath(app, dpid):
     return app.send_request(event.GetDatapathRequest(dpid=dpid))()
 
 
-def send_msg(app, msg):
+def send_msg(app, msg, reply_cls=None, reply_multi=False):
     """
     Send an openflow message.
     """
-    return app.send_request(event.SendMsgRequest(msg=msg))()
+    return app.send_request(event.SendMsgRequest(msg=msg,
+                                                 reply_cls=reply_cls,
+                                                 reply_multi=reply_multi))()
+
+
+app_manager.require_app('ryu.app.ofctl.service')

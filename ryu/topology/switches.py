@@ -17,7 +17,7 @@ import logging
 import struct
 import time
 import json
-from oslo.config import cfg
+from ryu import cfg
 
 from ryu.topology import event
 from ryu.base import app_manager
@@ -456,10 +456,10 @@ class Switches(app_manager.RyuApp):
         self.links = LinkState()      # Link class -> timestamp
         self.is_active = True
 
-        self.link_discovery = CONF.observe_links
+        self.link_discovery = self.CONF.observe_links
         if self.link_discovery:
-            self.install_flow = CONF.install_lldp_flow
-            self.explicit_drop = CONF.explicit_drop
+            self.install_flow = self.CONF.install_lldp_flow
+            self.explicit_drop = self.CONF.explicit_drop
             self.lldp_event = hub.Event()
             self.link_event = hub.Event()
             self.threads.append(hub.spawn(self.lldp_loop))
@@ -474,12 +474,12 @@ class Switches(app_manager.RyuApp):
 
     def _register(self, dp):
         assert dp.id is not None
-        assert dp.id not in self.dps
 
         self.dps[dp.id] = dp
-        self.port_state[dp.id] = PortState()
-        for port in dp.ports.values():
-            self.port_state[dp.id].add(port.port_no, port)
+        if not dp.id in self.port_state:
+            self.port_state[dp.id] = PortState()
+            for port in dp.ports.values():
+                self.port_state[dp.id].add(port.port_no, port)
 
     def _unregister(self, dp):
         if dp.id in self.dps:
@@ -529,10 +529,18 @@ class Switches(app_manager.RyuApp):
         LOG.debug(dp)
 
         if ev.state == MAIN_DISPATCHER:
+            dp_multiple_conns = False
+            if dp.id in self.dps:
+                LOG.warning('multiple connections from %s', dpid_to_str(dp.id))
+                dp_multiple_conns = True
+
             self._register(dp)
             switch = self._get_switch(dp.id)
             LOG.debug('register %s', switch)
-            self.send_event_to_observers(event.EventSwitchEnter(switch))
+
+            # Do not send event while dp has multiple connections.
+            if not dp_multiple_conns:
+                self.send_event_to_observers(event.EventSwitchEnter(switch))
 
             if not self.link_discovery:
                 return
@@ -574,9 +582,12 @@ class Switches(app_manager.RyuApp):
                     LOG.error('cannot install flow. unsupported version. %x',
                               dp.ofproto.OFP_VERSION)
 
-            for port in switch.ports:
-                if not port.is_reserved():
-                    self._port_added(port)
+            # Do not add ports while dp has multiple connections to controller.
+            if not dp_multiple_conns:
+                for port in switch.ports:
+                    if not port.is_reserved():
+                        self._port_added(port)
+
             self.lldp_event.set()
 
         elif ev.state == DEAD_DISPATCHER:
@@ -852,21 +863,3 @@ class Switches(app_manager.RyuApp):
             links = [link for link in self.links if link.src.dpid == dpid]
         rep = event.EventLinkReply(req.src, dpid, links)
         self.reply_to_request(req, rep)
-
-
-def get_switch(app, dpid=None):
-    rep = app.send_request(event.EventSwitchRequest(dpid))
-    return rep.switches
-
-
-def get_all_switch(app):
-    return get_switch(app)
-
-
-def get_link(app, dpid=None):
-    rep = app.send_request(event.EventLinkRequest(dpid))
-    return rep.links
-
-
-def get_all_link(app):
-    return get_link(app)

@@ -1,6 +1,5 @@
-#!/usr/bin/env python
-
-# Copyright (C) 2011, 2012 Nippon Telegraph and Telephone Corporation.
+# Copyright (C) 2013,2014 Nippon Telegraph and Telephone Corporation.
+# Copyright (C) 2013,2014 YAMAMOTO Takashi <yamamoto at valinux co jp>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,6 +13,3 @@
 # implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-from ryu.cmd.ofa_neutron_agent import main
-main()

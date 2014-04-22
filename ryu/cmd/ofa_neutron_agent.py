@@ -29,7 +29,7 @@ hub.patch()
 # eg. oslo.config.cfg.
 import ryu.contrib
 
-from oslo.config import cfg
+from ryu import cfg
 import sys
 
 from neutron.openstack.common import log as os_logging
@@ -64,8 +64,7 @@ def main():
 
     app_lists = CONF.app_lists + CONF.app
     if not app_lists:
-        app_lists = ['ryu.app.ofctl.service',
-                     'neutron.plugins.ofagent.agent.ofa_neutron_agent']
+        app_lists = ['neutron.plugins.ofagent.agent.ofa_neutron_agent']
 
     app_mgr = AppManager.get_instance()
     app_mgr.load_apps(app_lists)

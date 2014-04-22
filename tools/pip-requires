@@ -2,8 +2,8 @@ eventlet
 lxml
 msgpack-python>=0.4.0
 netaddr
-oslo.config
+oslo.config>=1.2.0
 paramiko
 routes
-six
+six>=1.4.0
 webob>=1.0.8

@@ -1,4 +1,4 @@
-# Copyright (C) 2011, 2012 Nippon Telegraph and Telephone Corporation.
+# Copyright (C) 2011-2014 Nippon Telegraph and Telephone Corporation.
 # Copyright (C) 2011 Isaku Yamahata <yamahata at valinux co jp>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,6 +19,7 @@ import itertools
 import logging
 import sys
 
+from ryu import cfg
 from ryu import utils
 from ryu.controller.handler import register_instance, get_dependent_services
 from ryu.controller.controller import Datapath
@@ -36,6 +37,14 @@ def lookup_service_brick(name):
     return SERVICE_BRICKS.get(name)
 
 
+def _lookup_service_brick_by_ev_cls(ev_cls):
+    return _lookup_service_brick_by_mod_name(ev_cls.__module__)
+
+
+def _lookup_service_brick_by_mod_name(mod_name):
+    return lookup_service_brick(mod_name.split('.')[-1])
+
+
 def register_app(app):
     assert isinstance(app, RyuApp)
     assert not app.name in SERVICE_BRICKS
@@ -45,6 +54,19 @@ def register_app(app):
 
 def unregister_app(app):
     SERVICE_BRICKS.pop(app.name)
+
+
+def require_app(app_name):
+    """
+    Request the application to be loaded.
+
+    This is used for "api" style modules, which is imported by a client
+    application, to automatically load the corresponding server application.
+    """
+    frm = inspect.stack()[2]  # skip a frame for "api" module
+    m = inspect.getmodule(frm[0])  # client module
+    m._REQUIRED_APP = getattr(m, '_REQUIRED_APP', [])
+    m._REQUIRED_APP.append(app_name)
 
 
 class RyuApp(object):
@@ -120,6 +142,7 @@ class RyuApp(object):
             self.logger = logging.getLogger(self.__class__.LOGGER_NAME)
         else:
             self.logger = logging.getLogger(self.name)
+        self.CONF = cfg.CONF
 
         # prevent accidental creation of instances of this class outside RyuApp
         class _EventThreadStop(event.EventBase):
@@ -143,6 +166,12 @@ class RyuApp(object):
         self.event_handlers.setdefault(ev_cls, [])
         self.event_handlers[ev_cls].append(handler)
 
+    def unregister_handler(self, ev_cls, handler):
+        assert callable(handler)
+        self.event_handlers[ev_cls].remove(handler)
+        if not event_handlers[ev_cls]:
+            del event_handlers[ev_cls]
+
     def register_observer(self, ev_cls, name, states=None):
         states = states or set()
         ev_cls_observers = self.observers.setdefault(ev_cls, {})
@@ -156,13 +185,42 @@ class RyuApp(object):
         for observers in self.observers.values():
             observers.pop(name, None)
 
+    def observe_event(self, ev_cls, states=None):
+        brick = _lookup_service_brick_by_ev_cls(ev_cls)
+        if brick is not None:
+            brick.register_observer(ev_cls, self.name, states)
+
+    def unobserve_event(self, ev_cls):
+        brick = _lookup_service_brick_by_ev_cls(ev_cls)
+        if brick is not None:
+            brick.unregister_observer(ev_cls, self.name)
+
     def get_handlers(self, ev, state=None):
-        handlers = self.event_handlers.get(ev.__class__, [])
+        """Returns a list of handlers for the specific event.
+
+        :param ev: The event to handle.
+        :param state: The current state. ("dispatcher")
+                      If None is given, returns all handlers for the event.
+                      Otherwise, returns only handlers that are interested
+                      in the specified state.
+                      The default is None.
+        """
+        ev_cls = ev.__class__
+        handlers = self.event_handlers.get(ev_cls, [])
         if state is None:
             return handlers
 
-        return [handler for handler in handlers
-                if not handler.dispatchers or state in handler.dispatchers]
+        def test(h):
+            if not ev_cls in h.callers:
+                # this handler does not listen the event.
+                return False
+            states = h.callers[ev_cls].dispatchers
+            if not states:
+                # empty states means all states
+                return True
+            return state in states
+
+        return filter(test, handlers)
 
     def get_observers(self, ev, state):
         observers = []
@@ -287,13 +345,19 @@ class AppManager(object):
 
             services = []
             for key, context_cls in cls.context_iteritems():
-                cls = self.contexts_cls.setdefault(key, context_cls)
-                assert cls == context_cls
+                v = self.contexts_cls.setdefault(key, context_cls)
+                assert v == context_cls
 
                 if issubclass(context_cls, RyuApp):
                     services.extend(get_dependent_services(context_cls))
 
-            services.extend(get_dependent_services(cls))
+            # we can't load an app that will be initiataed for
+            # contexts.
+            context_modules = map(lambda x: x.__module__,
+                                  self.contexts_cls.values())
+            for i in get_dependent_services(cls):
+                if not i in context_modules:
+                    services.append(i)
             if services:
                 app_lists.extend(services)
 
@@ -312,20 +376,22 @@ class AppManager(object):
     def _update_bricks(self):
         for i in SERVICE_BRICKS.values():
             for _k, m in inspect.getmembers(i, inspect.ismethod):
-                if not hasattr(m, 'observer'):
+                if not hasattr(m, 'callers'):
                     continue
+                for ev_cls, c in m.callers.iteritems():
+                    if not c.ev_source:
+                        continue
 
-                # name is module name of ev_cls
-                name = m.observer.split('.')[-1]
-                if name in SERVICE_BRICKS:
-                    brick = SERVICE_BRICKS[name]
-                    brick.register_observer(m.ev_cls, i.name, m.dispatchers)
+                    brick = _lookup_service_brick_by_mod_name(c.ev_source)
+                    if brick:
+                        brick.register_observer(ev_cls, i.name,
+                                                c.dispatchers)
 
-                # allow RyuApp and Event class are in different module
-                for brick in SERVICE_BRICKS.itervalues():
-                    if m.ev_cls in brick._EVENTS:
-                        brick.register_observer(m.ev_cls, i.name,
-                                                m.dispatchers)
+                    # allow RyuApp and Event class are in different module
+                    for brick in SERVICE_BRICKS.itervalues():
+                        if ev_cls in brick._EVENTS:
+                            brick.register_observer(ev_cls, i.name,
+                                                    c.dispatchers)
 
     @staticmethod
     def _report_brick(name, app):
