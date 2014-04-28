@@ -195,20 +195,23 @@ def push_flows(default_flow):
 
             control_node.append(dict(nid=curr_dpid, meter=meter_value))
 
-
         sql = "INSERT INTO meshsr_connection VALUE (NULL, 'flow%s', '%s','hello_simple_flow','%s')" % (
             flow, json.dumps(complete_flow), json.dumps(control_node))
         cursor.execute(sql)
 
 
-def main():
-    push_all_nodes()
-    default_flow = push_phy_link()
-    push_flows(default_flow)
+def get_link_nums():
+    return cursor.execute("SELECT * FROM phyLink")
 
 
 cursor.execute("DELETE FROM meshsr_node")
 cursor.execute("DELETE FROM meshsr_connection")
+link_nums = 0
 while True:
-    main()
+    push_all_nodes()
+    link_now = get_link_nums()
+    if link_now != link_nums:
+        link_nums = link_now
+        default_flow = push_phy_link()
+        push_flows(default_flow)
     sleep(GUI_ADAPTER_REFRESH_PERIOD)
