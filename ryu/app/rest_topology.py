@@ -62,10 +62,8 @@ class TopologyController(ControllerBase):
         links = get_link(self.topology_api_app, dpid)
         body = json.dumps([link.to_dict() for link in links])
 
-        LOG.debug("rest_toplogy.py LOG\n\n\n\n\n\n\n")
+        LOG.debug("rest_toplogy.py LOG")
         LOG.debug(body)
-        LOG.debug("\n\n\n\n\n")
-
 
         return Response(content_type='application/json', body=body)
 
