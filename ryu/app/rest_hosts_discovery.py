@@ -19,7 +19,7 @@ from webob import Response
 
 from ryu.app.wsgi import ControllerBase, WSGIApplication
 from ryu.base import app_manager
-from ryu.topology.HostDiscovery import get_hosts
+from ryu.topology.hosts_discovery import get_hosts
 
 LOG = logging.getLogger("RestHosts_Logger")
 

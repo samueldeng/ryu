@@ -23,7 +23,7 @@ from ryu.controller.handler import set_ev_cls
 from ryu.ofproto import ofproto_v1_3
 from ryu.lib.packet import packet
 from ryu.lib.packet import ethernet
-from ryu.topology import eventHosts
+from ryu.topology import event_hosts
 from ryu.lib import hub
 from ryu.topology.api import get_all_switch, get_all_link
 
@@ -156,7 +156,7 @@ class HostDiscovery(app_manager.RyuApp):
         return False
 
 
-    @set_ev_cls(eventHosts.EventHostsRequest)
+    @set_ev_cls(event_hosts.EventHostsRequest)
     def hosts_request_handler(self, req):
         # LOG.debug(req)
         hosts = []
@@ -169,12 +169,12 @@ class HostDiscovery(app_manager.RyuApp):
             peer_mac_addr = str(value[0])
             hosts.append(dict(dpid=dpid, port_no=in_port_num, peer_mac=peer_mac_addr))
 
-        rep = eventHosts.EventHostsReply(req.src, hosts)
+        rep = event_hosts.EventHostsReply(req.src, hosts)
         self.reply_to_request(req, rep)
 
 
 def get_hosts(app):
-    request = eventHosts.EventHostsRequest()
+    request = event_hosts.EventHostsRequest()
     # LOG.debug(request)
     rep = app.send_request(request)
     return rep.hosts
