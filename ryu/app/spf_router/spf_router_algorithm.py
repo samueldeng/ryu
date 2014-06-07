@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import logging
+import sys
 
 LOG = logging.getLogger("SPF_Router")
 
@@ -90,6 +91,12 @@ def gen_path_from_prev(prev, begin, end):
     return [node for node in reversed(path)]
 
 
+def out_formater(path):
+    for i in range(0,len(path)-1):
+        sys.stdout.write(path[i]+',')
+    sys.stdout.write(path[len(path)-1])
+
+
 def main():
     links = [
         ('1', '3', 100),
@@ -116,7 +123,8 @@ def main():
     my_g = Graph(graph)
     dist, prev = shortest_path(my_g, begin_node)
     path = gen_path_from_prev(prev, begin_node, end_node)
-    print path
+    out_formater(path)
+
 
 
 if __name__ == main():
