@@ -32,6 +32,7 @@ LINK_CAPACITY = 100  # count Bps
 DEFAULT_ACCESS_PORT = "3"
 MAX_PORTS_NUM = 10
 WAIT_TIME_WAIT_PORTS_ADD = 1
+INIT_PRORITY = 1
 
 
 class Port(object):
@@ -115,6 +116,21 @@ class Topology(list):
             LOG.error(e)
             return None
 
+    def __get_port_no_to_peer(self, dpid, peer_dpid):
+        try:
+            for link in self:
+                src_port = link.src_port
+                dst_port = link.dst_port
+                if src_port.dpid == dpid and dst_port.dpid == peer_dpid:
+                    return src_port.port_no
+            LOG.error("ERROR to find the link")
+            return None
+
+        except Exception, e:
+            LOG.error(e)
+            return None
+
+
     def get_spf_path(self, src_dpid, dst_dpid, req_bandwidth):
 
         """
@@ -138,7 +154,7 @@ class Topology(list):
         for i in range(0, len(optimal_path) - 1):
             link_ports_peers = (optimal_path[i], optimal_path[i + 1])
             match_field = match
-            out_port = self.__get_peer_port_no(link_ports_peers[0], link_ports_peers[1])
+            out_port = self.__get_port_no_to_peer(link_ports_peers[0], link_ports_peers[1])
             flow_entry = FlowEntry(optimal_path[i], match_field, out_port)
             flow_entries_json.append(flow_entry.convert_to_json())
 
@@ -290,8 +306,10 @@ class Topology(list):
             link.attr = str(link.attr)
 
     def show(self):
+        print "****************************TOPOLOGY*******************************"
         for link in self:
             print link
+        print "*******************************************************************"
 
 
 class RyuConnector(object):
@@ -342,6 +360,7 @@ class RyuConnector(object):
 
 
 class FlowEntry(object):
+    initial_priority = 1
     def __init__(self, dpid, match, action):
         super(FlowEntry, self).__init__()
         self.dpid = dpid
@@ -353,14 +372,15 @@ class FlowEntry(object):
             match = {"in_port": self.match}
             action = [{"port": self.action, "type": "OUTPUT"}]
             dpid = self.dpid
+            FlowEntry.initial_priority = (FlowEntry.initial_priority + 1) % 65535
 
             flow_entry = {
                 "dpid": str(dpid),
                 # "cookie": "0",
-                "priority": "1111",
+                "priority": str(FlowEntry.initial_priority),
                 "match": match,
                 "actions": action,
-            }
+                }
             return json.dumps(flow_entry)
 
         elif self.is_nw_addr():
@@ -368,13 +388,14 @@ class FlowEntry(object):
             action = [{"port": self.action, "type": "OUTPUT"}]
             dpid = self.dpid
 
+            FlowEntry.initial_priority = (FlowEntry.initial_priority + 1) % 65535
             flow_entry = {
                 "dpid": str(dpid),
                 # "cookie": "0",
-                "priority": "1111",
+                "priority": str(FlowEntry.initial_priority),
                 "match": match,
                 "actions": action,
-            }
+                }
             return json.dumps(flow_entry)
         else:
             LOG.error("Fatal Bug, wrong match format")
@@ -402,6 +423,7 @@ def read_ctrl_cmd():
     :return 3st. int. destination datapath id
     :return 4rd. float. required bandwidth.
     """
+    print "Input the command (match_field, source_dpid, dst_dpid, required_bandwidth), like 192.168.0.0/24 3 5 1.0"
     try:
         cmds = stdin.readline().split(" ")
         match = cmds[0]
@@ -425,27 +447,34 @@ def main():
     connector = RyuConnector()
 
     while True:
-        print "****************************TOPOLOGY*******************************"
-        topo.update()
-        topo.show()
         print "*******************************************************************"
+        print "0: show network topology"
+        print "1: push your flow"
+        print "2: exit"
+        print "*******************************************************************"
+        cmds = stdin.readline()
+        if cmds[0] == "0":
+            topo.update()
+            topo.show()
+        elif cmds[0] == "1":
+            match, src_dpid, dst_dpid, req_bandwidth = read_ctrl_cmd()
+            if match is None or src_dpid is None or dst_dpid is None or req_bandwidth is None:
+                LOG.error("wrong cmds.")
+                continue
 
-        print "Input the command (match_field, source_dpid, dst_dpid, required_bandwidth), like 192.168.0.0/24 3 5 1.0"
-        match, src_dpid, dst_dpid, req_bandwidth = read_ctrl_cmd()
-        if match is None or src_dpid is None or dst_dpid is None or req_bandwidth is None:
-            LOG.error("wrong cmds.")
-            continue
+            spf_path = topo.get_spf_path(src_dpid, dst_dpid, req_bandwidth)
+            flow_entries = topo.get_flow_entries_rest(match, spf_path)
 
-        spf_path = topo.get_spf_path(src_dpid, dst_dpid, req_bandwidth)
-        flow_entries = topo.get_flow_entries_rest(match, spf_path)
-
-        for flow_entry in flow_entries:
-            if connector.add_flow(flow_entry):
-                LOG.info("push flow successfully")
-            else:
-                LOG.info("push flow error.")
-
-        print "push shortest path  " + str(spf_path) + "  successfully."
+            for flow_entry in flow_entries:
+                print flow_entry
+                if connector.add_flow(flow_entry):
+                    LOG.info("push flow successfully")
+                else:
+                    LOG.info("push flow error.")
+            print "push shortest path  " + str(spf_path) + "  successfully."
+        else:
+            print "ByeBye"
+            break
 
 
 if __name__ == '__main__':

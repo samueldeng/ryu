@@ -53,14 +53,17 @@ def shortest_path(graph, source_node):
                    or (dist.has_key(node) and dist[node] < dist[u]) ):
                 u = node
         queue.remove(u)
-
+        try:
         # Process reachable, remaining nodes from u
-        for v in graph.get_neighbor(u):
-            if v in queue:
-                alt = dist[u] + graph.get_weight(u, v)
-                if (not dist.has_key(v)) or (alt < dist[v]):
-                    dist[v] = alt
-                    previous[v] = u
+            for v in graph.get_neighbor(u):
+                if v in queue:
+                    alt = dist[u] + graph.get_weight(u, v)
+                    if (not dist.has_key(v)) or (alt < dist[v]):
+                        dist[v] = alt
+                        previous[v] = u
+        except Exception,e:
+            print "error"
+            return None, None
     return dist, previous
 
 
@@ -100,21 +103,16 @@ def out_formater(path):
 def main():
     links = [
         ('1', '3', 100),
-        ('1', '4', 100),
         ('2', '3', 100),
         ('2', '4', 100),
-        ('3', '4', 100),
-        ('3', '5', 10),
+        ('3', '5', 100),
         ('3', '6', 100),
-        ('4', '5', 30),
-        ('4', '6', 100),
-        ('5', '6', 100),
         ('5', '7', 100),
         ('5', '8', 100),
         ('6', '7', 100),
         ('6', '8', 100),
     ]
-    begin_end = ('1', '7', 90)
+    begin_end = ('2', '7', 50)
     begin_node = begin_end[0]
     end_node = begin_end[1]
     required_bandwidth = begin_end[2]
@@ -122,8 +120,9 @@ def main():
     graph = conv_adj_matrix(links, required_bandwidth)
     my_g = Graph(graph)
     dist, prev = shortest_path(my_g, begin_node)
-    path = gen_path_from_prev(prev, begin_node, end_node)
-    out_formater(path)
+    if dist != None and prev != None:
+        path = gen_path_from_prev(prev, begin_node, end_node)
+        out_formater(path)
 
 
 
