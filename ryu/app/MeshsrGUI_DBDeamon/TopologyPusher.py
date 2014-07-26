@@ -9,10 +9,10 @@ REST_SERVER_ADDR = 'http://localhost:8080'
 
 DBADRESS = 'localhost'
 DBUSER = 'root'
-DBPASSWD = '897375'
+DBPASSWD = 'mysql'
 DBNAME = 'meshsr'
 
-TOPO_PUSH_PERIOD = 10  # count as sec
+TOPO_PUSH_PERIOD = 10 # count as sec
 
 conn = MySQLdb.connect(host=DBADRESS, user=DBUSER, passwd=DBPASSWD, db=DBNAME)
 conn.autocommit(True)
@@ -20,36 +20,72 @@ cursor = conn.cursor()
 
 dp_cord_x = dict()
 dp_cord_y = dict()
-dp_cord_x['0000000000000010'] = 0
-dp_cord_y['0000000000000010'] = 0
+j_base_x = 20
+j_base_y = 350
+j_step_x = 120
+j_step_y = 145
+j_group = 15
+j_core = j_base_y + j_step_y*2.5
 
-dp_cord_x['0000000000000011'] = 0
-dp_cord_y['0000000000000011'] = 0
+dp_cord_x['0000000000000010'] = j_base_x + j_step_x*0
+dp_cord_y['0000000000000010'] = j_base_y
 
-dp_cord_x['0000000000000012'] = 0
-dp_cord_y['0000000000000012'] = 0
+dp_cord_x['0000000000000011'] = j_base_x + j_step_x*1
+dp_cord_y['0000000000000011'] = j_base_y
 
-dp_cord_x['0000000000000013'] = 0
-dp_cord_y['0000000000000013'] = 0
+dp_cord_x['0000000000000012'] = j_base_x + j_step_x*1
+dp_cord_y['0000000000000012'] = j_base_y + j_step_y
 
-dp_cord_x['0000000000000014'] = 0
-dp_cord_y['0000000000000014'] = 0
+dp_cord_x['0000000000000013'] = j_base_x + j_step_x*0
+dp_cord_y['0000000000000013'] = j_base_y + j_step_y
 
-dp_cord_x['0000000000000015'] = 0
-dp_cord_y['0000000000000015'] = 0
+dp_cord_x['0000000000000014'] = j_base_x + j_step_x*0.5
+dp_cord_y['0000000000000014'] = j_core
 
-dp_cord_x['0000000000000016'] = 0
-dp_cord_y['0000000000000016'] = 0
+dp_cord_x['0000000000000015'] = j_base_x + j_group + j_step_x*2.5
+dp_cord_y['0000000000000015'] = j_core
 
-dp_cord_x['0000000000000017'] = 0
-dp_cord_y['0000000000000017'] = 0
+dp_cord_x['0000000000000016'] = j_base_x + j_group + j_step_x*2
+dp_cord_y['0000000000000016'] = j_base_y + j_step_y
 
-dp_cord_x['0000000000000018'] = 0
-dp_cord_y['0000000000000018'] = 0
+dp_cord_x['0000000000000017'] = j_base_x + j_group + j_step_x*3
+dp_cord_y['0000000000000017'] = j_base_y + j_step_y
 
-dp_cord_x['0000000000000019'] = 0
-dp_cord_y['0000000000000019'] = 0
+dp_cord_x['0000000000000018'] = j_base_x + j_group + j_step_x*3
+dp_cord_y['0000000000000018'] = j_base_y
 
+dp_cord_x['0000000000000019'] = j_base_x + j_group + j_step_x*2
+dp_cord_y['0000000000000019'] = j_base_y
+
+dp_cord_x['0000000000000020'] = j_base_x + j_group*2 + j_step_x*4
+dp_cord_y['0000000000000020'] = j_base_y
+
+dp_cord_x['0000000000000021'] = j_base_x + j_group*2 + j_step_x*5
+dp_cord_y['0000000000000021'] = j_base_y
+
+dp_cord_x['0000000000000022'] = j_base_x + j_group*2 + j_step_x*5
+dp_cord_y['0000000000000022'] = j_base_y + j_step_y
+
+dp_cord_x['0000000000000023'] = j_base_x + j_group*2 + j_step_x*4
+dp_cord_y['0000000000000023'] = j_base_y + j_step_y
+
+dp_cord_x['0000000000000024'] = j_base_x + j_group*2 + j_step_x*4.5
+dp_cord_y['0000000000000024'] = j_core
+
+dp_cord_x['0000000000000025'] = j_base_x + j_group*3 + j_step_x*6.5
+dp_cord_y['0000000000000025'] = j_core
+
+dp_cord_x['0000000000000026'] = j_base_x + j_group*2 + j_step_x*6
+dp_cord_y['0000000000000026'] = j_base_y + j_step_y
+
+dp_cord_x['0000000000000027'] = j_base_x + j_group*2 + j_step_x*7
+dp_cord_y['0000000000000027'] = j_base_y + j_step_y
+
+dp_cord_x['0000000000000028'] = j_base_x + j_group*2 + j_step_x*7
+dp_cord_y['0000000000000028'] = j_base_y
+
+dp_cord_x['0000000000000029'] = j_base_x + j_group*2 + j_step_x*6
+dp_cord_y['0000000000000029'] = j_base_y 
 
 def _debug(mess):
     print "*************************"
@@ -92,7 +128,7 @@ def update_switches(switches_json):
             cursor.execute(sql)
 
 
-def _conv(prev_links):
+def _conv_str(prev_links):
     # From ((L,L)...) to [(str,str)...]
     new_prev_links = []
     for p_link in prev_links:
@@ -101,6 +137,15 @@ def _conv(prev_links):
         new_prev_links.append((str_1, str_2))
     return new_prev_links
 
+
+def _to_du(prev_links):
+    new_bi_links = []
+    for p_link in prev_links:
+        str_1 = str(p_link[0])
+        str_2 = str(p_link[1])
+        new_bi_links.append((str_1, str_2))
+        new_bi_links.append((str_2, str_1))
+    return new_bi_links
 
 def update_phylink(now_links_json):
     sql = "SELECT srcPort,dstPort FROM phyLink"
@@ -121,13 +166,17 @@ def update_phylink(now_links_json):
             # dst_hw_addr = dst['hw_addr'].encode()
             dst_port_id = _find_port_id(dst_dpid, dst_port_no)
 
-            sql = "INSERT INTO phyLink VALUE (NULL, %s, %s);" \
-                  % (src_port_id, dst_port_id)
-            _debug(sql)
-            cursor.execute(sql)
+            sql = "SELECT * FROM phyLink WHERE srcPort=%s AND dstPort=%s" % (dst_port_id, src_port_id)
+            cnt = cursor.execute(sql)
+            if cnt == 0:
+                sql = "INSERT INTO phyLink VALUE (NULL, %s, %s);" \
+                      % (src_port_id, dst_port_id)
+                conn.commit()
+                _debug(sql)
+                cursor.execute(sql)
         return
     # No changes about link
-    if num_prev_links == len(now_links_json):
+    if num_prev_links == len(now_links_json)/2:
         return
     # some link add or delete.
     current_links = []
@@ -144,16 +193,23 @@ def update_phylink(now_links_json):
         dst_port_id = _find_port_id(dst_dpid, dst_port_no)
         current_links.append((src_port_id, dst_port_id))
 
-    prev_links = _conv(prev_links)
+    prev_links = _conv_str(prev_links)
+    prev_links = _to_du(prev_links)
     if len(prev_links) < len(current_links):
+        # link add
         diff_links = set(current_links).difference(set(prev_links))
         for d_link in diff_links:
             src_port_id = d_link[0]
             dst_port_id = d_link[1]
-            sql = "INSERT INTO phyLink VALUE (NULL, %s, %s);" % (src_port_id, dst_port_id)
-            _debug(sql)
-            cursor.execute(sql)
+
+            sql = "SELECT * FROM phyLink WHERE srcPort=%s AND dstPort=%s" % (dst_port_id, src_port_id)
+            cnt = cursor.execute(sql)
+            if cnt == 0:
+                sql = "INSERT INTO phyLink VALUE (NULL, %s, %s);" % (src_port_id, dst_port_id)
+                _debug(sql)
+                cursor.execute(sql)
     else:
+        # link del
         diff_links = set(prev_links).difference(set(current_links))
         for d_link in diff_links:
             src_port_id = d_link[0]

@@ -1,6 +1,7 @@
 import json
 from time import sleep
 import MySQLdb
+import copy
 
 __author__ = 'samuel'
 
@@ -8,7 +9,7 @@ REST_SERVER_ADDR = 'http://localhost:8080'
 
 DBADRESS = 'localhost'
 DBUSER = 'root'
-DBPASSWD = '897375'
+DBPASSWD = 'mysql'
 DBNAME = 'meshsr'
 
 conn = MySQLdb.connect(host=DBADRESS, user=DBUSER, passwd=DBPASSWD, db=DBNAME)
@@ -25,7 +26,7 @@ def activate_link(cmplt_flow, ac_link):
     for flow in cmplt_flow:
         _bid = flow["bid"]
         _eid = flow["eid"]
-        if _bid == ac_bid and _eid == ac_eid:
+        if (_bid == ac_bid and _eid == ac_eid) or (_bid == ac_eid and _eid == ac_bid):
             flow["type"] = "con"
             return cmplt_flow
 
@@ -148,16 +149,15 @@ def push_flows(default_flow):
         cnt = cursor.execute(sql)
         assert cnt != 0
         entries = cursor.fetchall()
-        print entries
-
         # add single_flow into database
-        complete_flow = list(default_flow)
+        complete_flow = copy.deepcopy(default_flow)
         # complete_flow = list({
         #     "bid": None
         #     "eid": None
         #     "type": None
         # })
         prev_dpid = None
+        #print complete_flow
         for entry in entries:
             seq = entry[0]
             curr_dpid = entry[1]
@@ -168,24 +168,25 @@ def push_flows(default_flow):
             if seq == 0:
                 serNICID = find_peerNICID_from_portID(in_port)
                 active_link = dict(node=serNICID, peer=curr_dpid)
+                print active_link
                 complete_flow = activate_link(complete_flow, active_link)
                 prev_dpid = curr_dpid
-                #print complete_flow
 
             elif seq != len(entries) - 1:
                 active_link = dict(node=prev_dpid, peer=curr_dpid)
                 complete_flow = activate_link(complete_flow, active_link)
                 prev_dpid = curr_dpid
-                #print complete_flow
 
             else:
                 active_link = dict(node=prev_dpid, peer=curr_dpid)
                 complete_flow = activate_link(complete_flow, active_link)
                 # add the final server linking it.
-                print out_port
+                #print out_port
+                print active_link
                 serNICID = find_peerNICID_from_portID(out_port)
                 active_link = dict(node=curr_dpid, peer=serNICID)
-                #print complete_flow
+                complete_flow = activate_link(complete_flow, active_link)
+        print complete_flow
 
         # Add the Meter Value into Database.
         control_node = list()
@@ -206,12 +207,22 @@ def get_link_nums():
 
 cursor.execute("DELETE FROM meshsr_node")
 cursor.execute("DELETE FROM meshsr_connection")
+
+push_all_nodes()
+push_phy_link()
+
 link_nums = 0
 while True:
-    push_all_nodes()
-    link_now = get_link_nums()
-    if link_now != link_nums:
-        link_nums = link_now
-        default_flow = push_phy_link()
-        push_flows(default_flow)
+    sql = "SELECT * FROM flowEntry"
+    cnt = cursor.execute(sql)
+    print cnt
+    if cnt != 0:
+        push_all_nodes()
+        link_now = get_link_nums()
+        if link_now != link_nums:
+            print 'link change'
+            link_nums = link_now
+            default_flow = push_phy_link()
+            #print default_flow
+            push_flows(default_flow)
     sleep(GUI_ADAPTER_REFRESH_PERIOD)

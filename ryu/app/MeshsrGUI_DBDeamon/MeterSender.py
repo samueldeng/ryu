@@ -9,7 +9,7 @@ REST_SERVER_ADDR = 'http://localhost:8080'
 
 DBADRESS = 'localhost'
 DBUSER = 'root'
-DBPASSWD = '897375'
+DBPASSWD = 'mysql'
 DBNAME = 'meshsr'
 
 conn = MySQLdb.connect(host=DBADRESS, user=DBUSER, passwd=DBPASSWD, db=DBNAME)
@@ -36,16 +36,17 @@ def find_modified_dpid(_curr_ctrl_entry, _prev_diff_entry):
 
 
 def debug(mess):
-    print '************************************************'
     print mess
-    print '************************************************'
 
 
 prev_ctrl_table = None
 while True:
     cursor.execute("SELECT id,control_node FROM meshsr_connection WHERE flow_info != 'default'")
     curr_ctrl_table = cursor.fetchall()
-    debug(curr_ctrl_table)
+    # debug('111111111111111111111111111111111111111111111111111111')
+    # debug(curr_ctrl_table)
+    # debug('222222222222222222222222222222222222222222222222222222')
+    # debug(prev_ctrl_table)
     if prev_ctrl_table is not None:
         for curr_ctrl_entry in curr_ctrl_table:
             prev_diff_entry = None
@@ -54,9 +55,11 @@ while True:
                 continue
             dpid, value = find_modified_dpid(curr_ctrl_entry, prev_diff_entry)
             dpid = int(dpid, 16)
+            if value is None:
+                continue
             post_data = {
                 "dpid": dpid,
-                "meter_id": 1,
+                "meter_id": 0,
                 "flags": "KBPS",
                 "bands": [
                     {
