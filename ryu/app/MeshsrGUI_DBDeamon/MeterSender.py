@@ -31,7 +31,9 @@ def find_modified_dpid(_curr_ctrl_entry, _prev_diff_entry):
 
     for i_curr in curr:
         for i_prev in prev:
-            if i_curr["nid"] == i_prev["nid"] and i_curr["meter"] != i_prev["meter"]:
+            if i_curr["nid"] == i_prev["nid"] and str(i_curr["meter"]) != str(i_prev["meter"]):
+#		print "previous meter value is ", i_prev["meter"], "type is", type(i_prev["meter"])
+#		print "current meter value is ", i_curr["meter"], "type is", type(i_curr["meter"])
                 return i_curr["nid"], i_curr['meter']
 
 
@@ -41,6 +43,11 @@ def debug(mess):
 
 prev_ctrl_table = None
 while True:
+    cnt = cursor.execute("SELECT * FROM flowEntry")
+    if cnt == 0:
+        print "there are no flow entries in the whole network, sleep for a while."
+        sleep(1)
+        continue
     cursor.execute("SELECT id,control_node FROM meshsr_connection WHERE flow_info != 'default'")
     curr_ctrl_table = cursor.fetchall()
     # debug('111111111111111111111111111111111111111111111111111111')
@@ -78,4 +85,4 @@ while True:
 
 
     prev_ctrl_table = list(curr_ctrl_table)
-    sleep(1)
+    sleep(2)
