@@ -215,7 +215,7 @@ link_nums = 0
 while True:
     sql = "SELECT * FROM flowEntry"
     cnt = cursor.execute(sql)
-    print cnt
+    print "there are ", cnt, "flow entry(s) in the whole network."
     if cnt != 0:
         push_all_nodes()
         link_now = get_link_nums()
