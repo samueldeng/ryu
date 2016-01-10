@@ -207,6 +207,16 @@ x() ->
              class = {experimenter, onf},name = pbb_uca,
              has_mask = false,
              value = <<1:1>>,
+             mask = undefined},
+         #ofp_field{
+             class = nxm_1,name = 31,  % tun_ipv4_src
+             has_mask = false,
+             value = <<1,2,3,4>>,
+             mask = undefined},
+         #ofp_field{
+             class = nxm_1,name = 32,  % tun_ipv4_dst
+             has_mask = false,
+             value = <<1,2,3,4>>,
              mask = undefined}
     ],
     List = [
@@ -555,13 +565,25 @@ x() ->
             #ofp_packet_queue{queue_id = 99, port_no = 77,
                 properties = [
                     #ofp_queue_prop_min_rate{rate = 10},
-                    #ofp_queue_prop_max_rate{rate = 900}
+                    #ofp_queue_prop_max_rate{rate = 900},
+                    #ofp_queue_prop_experimenter{experimenter = 999,
+                                                 data = <<>>}
                 ]
             },
             #ofp_packet_queue{queue_id = 88, port_no = 77,
                 properties = [
                     #ofp_queue_prop_min_rate{rate = 100},
-                    #ofp_queue_prop_max_rate{rate = 200}
+                    #ofp_queue_prop_max_rate{rate = 200},
+                    #ofp_queue_prop_experimenter{experimenter = 999,
+                                                 data = <<1:8>>}
+                ]
+            },
+            #ofp_packet_queue{queue_id = 77, port_no = 77,
+                properties = [
+                    #ofp_queue_prop_min_rate{rate = 200},
+                    #ofp_queue_prop_max_rate{rate = 400},
+                    #ofp_queue_prop_experimenter{experimenter = 999,
+                                                 data = <<1:8,2:8>>}
                 ]
             }
         ]},

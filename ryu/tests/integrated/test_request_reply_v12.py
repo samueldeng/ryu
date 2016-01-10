@@ -434,7 +434,7 @@ class RunTest(tester.TestFlowBase):
     def test_flow_add_goto_table(self, dp):
         self._verify = dp.ofproto.OFPIT_GOTO_TABLE
 
-        inst = [dp.ofproto_parser.OFPInstructionGotoTable(0), ]
+        inst = [dp.ofproto_parser.OFPInstructionGotoTable(1), ]
         self.mod_flow(dp, inst=inst)
         self.send_flow_stats(dp)
 
@@ -467,10 +467,10 @@ class RunTest(tester.TestFlowBase):
         a2 = dp.ofproto_parser.OFPActionOutput(2, 1500)
 
         # table_id, cookie, priority, dl_dst, action)
-        tables = {0: [0xffff, 10, '\xee' * 6, a1],
-                  1: [0xff00, 10, '\xee' * 6, a2],
-                  2: [0xf000, 100, '\xee' * 6, a1],
-                  3: [0x0000, 10, '\xff' * 6, a1]}
+        tables = {0: [0xffff, 10, b'\xee' * 6, a1],
+                  1: [0xff00, 10, b'\xee' * 6, a2],
+                  2: [0xf000, 100, b'\xee' * 6, a1],
+                  3: [0x0000, 10, b'\xff' * 6, a1]}
 
         self._verify = tables
         for table_id, val in tables.items():
@@ -506,8 +506,9 @@ class RunTest(tester.TestFlowBase):
 
         cookie = 0xff00
         cookie_mask = 0xffff
+        table_id = 1
         self.mod_flow(dp, command=dp.ofproto.OFPFC_MODIFY,
-                      actions=[action], table_id=dp.ofproto.OFPTT_ALL,
+                      actions=[action], table_id=table_id,
                       cookie=cookie, cookie_mask=cookie_mask)
 
         dp.send_barrier()
@@ -526,9 +527,10 @@ class RunTest(tester.TestFlowBase):
 
         cookie = 0xffff
         cookie_mask = 0xff00
-        self.mod_flow(dp, command=dp.ofproto.OFPFC_MODIFY,
-                      actions=[action], table_id=dp.ofproto.OFPTT_ALL,
-                      cookie=cookie, cookie_mask=cookie_mask)
+        for table_id in range(2):
+            self.mod_flow(dp, command=dp.ofproto.OFPFC_MODIFY,
+                          actions=[action], table_id=table_id,
+                          cookie=cookie, cookie_mask=cookie_mask)
 
         dp.send_barrier()
         self.send_flow_stats(dp)
@@ -544,10 +546,10 @@ class RunTest(tester.TestFlowBase):
         self._verify[3][3] = action
 
         match = dp.ofproto_parser.OFPMatch()
-        match.set_dl_dst('\xff' * 6)
+        match.set_dl_dst(b'\xff' * 6)
+        table_id = 3
         self.mod_flow(dp, command=dp.ofproto.OFPFC_MODIFY,
-                      actions=[action], table_id=dp.ofproto.OFPTT_ALL,
-                      match=match)
+                      actions=[action], table_id=table_id, match=match)
 
         dp.send_barrier()
         self.send_flow_stats(dp)
@@ -563,10 +565,11 @@ class RunTest(tester.TestFlowBase):
         self._verify[2][3] = action
 
         match = dp.ofproto_parser.OFPMatch()
-        match.set_dl_dst('\xee' * 6)
+        match.set_dl_dst(b'\xee' * 6)
         priority = 100
+        table_id = 2
         self.mod_flow(dp, command=dp.ofproto.OFPFC_MODIFY_STRICT,
-                      actions=[action], table_id=dp.ofproto.OFPTT_ALL,
+                      actions=[action], table_id=table_id,
                       match=match, priority=priority)
 
         dp.send_barrier()
@@ -650,7 +653,7 @@ class RunTest(tester.TestFlowBase):
         del self._verify[3]
 
         match = dp.ofproto_parser.OFPMatch()
-        match.set_dl_dst('\xff' * 6)
+        match.set_dl_dst(b'\xff' * 6)
         self.mod_flow(dp, command=dp.ofproto.OFPFC_DELETE,
                       table_id=dp.ofproto.OFPTT_ALL, match=match)
 
@@ -683,7 +686,7 @@ class RunTest(tester.TestFlowBase):
         del self._verify[2]
 
         match = dp.ofproto_parser.OFPMatch()
-        match.set_dl_dst('\xee' * 6)
+        match.set_dl_dst(b'\xee' * 6)
         priority = 100
         self.mod_flow(dp, command=dp.ofproto.OFPFC_DELETE_STRICT,
                       table_id=dp.ofproto.OFPTT_ALL,
@@ -921,7 +924,6 @@ class RunTest(tester.TestFlowBase):
         if output is None:
             output = dp.ofproto.OFPP_CONTROLLER
 
-        self._verify['buffer_id'] = buffer_id
         self._verify['in_port'] = in_port
         self._verify['data'] = data
 

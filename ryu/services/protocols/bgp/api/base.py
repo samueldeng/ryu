@@ -40,6 +40,7 @@ NEXT_HOP = 'next_hop'
 VPN_LABEL = 'label'
 API_SYM = 'name'
 ORIGIN_RD = 'origin_rd'
+ROUTE_FAMILY = 'route_family'
 
 # API call registry
 _CALL_REGISTRY = {}
@@ -72,7 +73,7 @@ def register(**kwargs):
     Does not do any check or validation.
     """
     def decorator(func):
-        _CALL_REGISTRY[kwargs.get(API_SYM, func.func_name)] = func
+        _CALL_REGISTRY[kwargs.get(API_SYM, func.__name__)] = func
         return func
 
     return decorator
@@ -180,7 +181,7 @@ class RegisterWithArgChecks(object):
 
             # Collect optional arguments.
             opt_items = {}
-            for opt_arg, opt_value in kwargs.iteritems():
+            for opt_arg, opt_value in kwargs.items():
                 if opt_arg in self._opt_args:
                     opt_items[opt_arg] = opt_value
 

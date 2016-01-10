@@ -21,7 +21,7 @@ import struct
 import array
 import inspect
 from nose.tools import *
-from nose.plugins.skip import Skip, SkipTest
+import six
 from ryu.ofproto import ether, inet
 from ryu.lib.packet import *
 from ryu.lib import addrconv
@@ -44,10 +44,10 @@ class TestPacket(unittest.TestCase):
     src_port = 50001
     dst_port = 50002
     src_ip_bin = addrconv.ipv4.text_to_bin(src_ip)
-    payload = '\x06\x06\x47\x50\x00\x00\x00\x00' \
-        + '\xcd\xc5\x00\x00\x00\x00\x00\x00' \
-        + '\x10\x11\x12\x13\x14\x15\x16\x17' \
-        + '\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f'
+    payload = b'\x06\x06\x47\x50\x00\x00\x00\x00' \
+        + b'\xcd\xc5\x00\x00\x00\x00\x00\x00' \
+        + b'\x10\x11\x12\x13\x14\x15\x16\x17' \
+        + b'\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f'
 
     def get_protocols(self, pkt):
         protocols = {}
@@ -79,14 +79,14 @@ class TestPacket(unittest.TestCase):
         # ethernet !6s6sH
         e_buf = self.dst_mac_bin \
             + self.src_mac_bin \
-            + '\x08\x06'
+            + b'\x08\x06'
 
         # arp !HHBBH6sI6sI
-        a_buf = '\x00\x01' \
-            + '\x08\x00' \
-            + '\x06' \
-            + '\x04' \
-            + '\x00\x02' \
+        a_buf = b'\x00\x01' \
+            + b'\x08\x00' \
+            + b'\x06' \
+            + b'\x04' \
+            + b'\x00\x02' \
             + self.src_mac_bin \
             + self.src_ip_bin \
             + self.dst_mac_bin \
@@ -170,18 +170,18 @@ class TestPacket(unittest.TestCase):
         # ethernet !6s6sH
         e_buf = self.dst_mac_bin \
             + self.src_mac_bin \
-            + '\x81\x00'
+            + b'\x81\x00'
 
         # vlan !HH
-        v_buf = '\xF0\x03' \
-            + '\x08\x06'
+        v_buf = b'\xF0\x03' \
+            + b'\x08\x06'
 
         # arp !HHBBH6sI6sI
-        a_buf = '\x00\x01' \
-            + '\x08\x00' \
-            + '\x06' \
-            + '\x04' \
-            + '\x00\x02' \
+        a_buf = b'\x00\x01' \
+            + b'\x08\x00' \
+            + b'\x06' \
+            + b'\x04' \
+            + b'\x00\x02' \
             + self.src_mac_bin \
             + self.src_ip_bin \
             + self.dst_mac_bin \
@@ -286,25 +286,25 @@ class TestPacket(unittest.TestCase):
         # ethernet !6s6sH
         e_buf = self.dst_mac_bin \
             + self.src_mac_bin \
-            + '\x08\x00'
+            + b'\x08\x00'
 
         # ipv4 !BBHHHBBHII
-        ip_buf = '\x45' \
-            + '\x01' \
-            + '\x00\x3C' \
-            + '\x00\x03' \
-            + '\x20\x04' \
-            + '\x40' \
-            + '\x11' \
-            + '\x00\x00' \
+        ip_buf = b'\x45' \
+            + b'\x01' \
+            + b'\x00\x3C' \
+            + b'\x00\x03' \
+            + b'\x20\x04' \
+            + b'\x40' \
+            + b'\x11' \
+            + b'\x00\x00' \
             + self.src_ip_bin \
             + self.dst_ip_bin
 
         # udp !HHHH
-        u_buf = '\x19\x0F' \
-            + '\x1F\x90' \
-            + '\x00\x28' \
-            + '\x00\x00'
+        u_buf = b'\x19\x0F' \
+            + b'\x1F\x90' \
+            + b'\x00\x28' \
+            + b'\x00\x00'
 
         buf = e_buf + ip_buf + u_buf + self.payload
 
@@ -413,7 +413,7 @@ class TestPacket(unittest.TestCase):
         ip = ipv4.ipv4(4, 5, 0, 0, 0, 0, 0, 64, inet.IPPROTO_TCP, 0,
                        self.src_ip, self.dst_ip)
         t = tcp.tcp(0x190F, 0x1F90, 0x123, 1, 6, 0b101010, 2048, 0, 0x6f,
-                    '\x01\x02')
+                    b'\x01\x02')
 
         p = packet.Packet()
         p.add_protocol(e)
@@ -425,31 +425,31 @@ class TestPacket(unittest.TestCase):
         # ethernet !6s6sH
         e_buf = self.dst_mac_bin \
             + self.src_mac_bin \
-            + '\x08\x00'
+            + b'\x08\x00'
 
         # ipv4 !BBHHHBBHII
-        ip_buf = '\x45' \
-            + '\x00' \
-            + '\x00\x4C' \
-            + '\x00\x00' \
-            + '\x00\x00' \
-            + '\x40' \
-            + '\x06' \
-            + '\x00\x00' \
+        ip_buf = b'\x45' \
+            + b'\x00' \
+            + b'\x00\x4C' \
+            + b'\x00\x00' \
+            + b'\x00\x00' \
+            + b'\x40' \
+            + b'\x06' \
+            + b'\x00\x00' \
             + self.src_ip_bin \
             + self.dst_ip_bin
 
         # tcp !HHIIBBHHH + option
-        t_buf = '\x19\x0F' \
-            + '\x1F\x90' \
-            + '\x00\x00\x01\x23' \
-            + '\x00\x00\x00\x01' \
-            + '\x60' \
-            + '\x2A' \
-            + '\x08\x00' \
-            + '\x00\x00' \
-            + '\x00\x6F' \
-            + '\x01\x02\x00\x00'
+        t_buf = b'\x19\x0F' \
+            + b'\x1F\x90' \
+            + b'\x00\x00\x01\x23' \
+            + b'\x00\x00\x00\x01' \
+            + b'\x60' \
+            + b'\x2A' \
+            + b'\x08\x00' \
+            + b'\x00\x00' \
+            + b'\x00\x6F' \
+            + b'\x01\x02\x00\x00'
 
         buf = e_buf + ip_buf + t_buf + self.payload
 
@@ -568,40 +568,40 @@ class TestPacket(unittest.TestCase):
         ip = ipv4.ipv4(proto=inet.IPPROTO_SCTP)
         s = sctp.sctp(chunks=[sctp.chunk_data(payload_data=self.payload)])
 
-        p = e/ip/s
+        p = e / ip / s
         p.serialize()
 
         ipaddr = addrconv.ipv4.text_to_bin('0.0.0.0')
 
         # ethernet !6s6sH
-        e_buf = '\xff\xff\xff\xff\xff\xff' \
-            + '\x00\x00\x00\x00\x00\x00' \
-            + '\x08\x00'
+        e_buf = b'\xff\xff\xff\xff\xff\xff' \
+            + b'\x00\x00\x00\x00\x00\x00' \
+            + b'\x08\x00'
 
         # ipv4 !BBHHHBBHII
-        ip_buf = '\x45' \
-            + '\x00' \
-            + '\x00\x50' \
-            + '\x00\x00' \
-            + '\x00\x00' \
-            + '\xff' \
-            + '\x84' \
-            + '\x00\x00' \
+        ip_buf = b'\x45' \
+            + b'\x00' \
+            + b'\x00\x50' \
+            + b'\x00\x00' \
+            + b'\x00\x00' \
+            + b'\xff' \
+            + b'\x84' \
+            + b'\x00\x00' \
             + ipaddr \
             + ipaddr
 
         # sctp !HHII + chunk_data !BBHIHHI + payload
-        s_buf = '\x00\x00' \
-            + '\x00\x00' \
-            + '\x00\x00\x00\x00' \
-            + '\x00\x00\x00\x00' \
-            + '\x00' \
-            + '\x00' \
-            + '\x00\x00' \
-            + '\x00\x00\x00\x00' \
-            + '\x00\x00' \
-            + '\x00\x00' \
-            + '\x00\x00\x00\x00' \
+        s_buf = b'\x00\x00' \
+            + b'\x00\x00' \
+            + b'\x00\x00\x00\x00' \
+            + b'\x00\x00\x00\x00' \
+            + b'\x00' \
+            + b'\x00' \
+            + b'\x00\x00' \
+            + b'\x00\x00\x00\x00' \
+            + b'\x00\x00' \
+            + b'\x00\x00' \
+            + b'\x00\x00\x00\x00' \
             + self.payload
 
         buf = e_buf + ip_buf + s_buf
@@ -630,16 +630,16 @@ class TestPacket(unittest.TestCase):
         eq_(0, p_ipv4.flags)
         eq_(255, p_ipv4.ttl)
         eq_(inet.IPPROTO_SCTP, p_ipv4.proto)
-        eq_('0.0.0.0', p_ipv4.src)
-        eq_('0.0.0.0', p_ipv4.dst)
+        eq_('10.0.0.1', p_ipv4.src)
+        eq_('10.0.0.2', p_ipv4.dst)
         t = bytearray(ip_buf)
         struct.pack_into('!H', t, 10, p_ipv4.csum)
-        eq_(packet_utils.checksum(t), 0)
+        eq_(packet_utils.checksum(t), 0x1403)
 
         # sctp
         ok_(p_sctp)
-        eq_(0, p_sctp.src_port)
-        eq_(0, p_sctp.dst_port)
+        eq_(1, p_sctp.src_port)
+        eq_(1, p_sctp.dst_port)
         eq_(0, p_sctp.vtag)
         assert isinstance(p_sctp.chunks[0], sctp.chunk_data)
         eq_(0, p_sctp.chunks[0]._type)
@@ -673,8 +673,8 @@ class TestPacket(unittest.TestCase):
                        'ttl': 255,
                        'proto': inet.IPPROTO_SCTP,
                        'csum': p_ipv4.csum,
-                       'src': '0.0.0.0',
-                       'dst': '0.0.0.0',
+                       'src': '10.0.0.1',
+                       'dst': '10.0.0.2',
                        'option': None}
         _ipv4_str = ','.join(['%s=%s' % (k, repr(ipv4_values[k]))
                               for k, v in inspect.getmembers(p_ipv4)
@@ -694,8 +694,8 @@ class TestPacket(unittest.TestCase):
                              for k in sorted(data_values.keys())])
         data_str = '[%s(%s)]' % (sctp.chunk_data.__name__, _data_str)
 
-        sctp_values = {'src_port': 0,
-                       'dst_port': 0,
+        sctp_values = {'src_port': 1,
+                       'dst_port': 1,
                        'vtag': 0,
                        'csum': p_sctp.csum,
                        'chunks': data_str}
@@ -724,34 +724,34 @@ class TestPacket(unittest.TestCase):
         ip = ipv4.ipv4(proto=inet.IPPROTO_ICMP)
         ic = icmp.icmp()
 
-        p = e/ip/ic
+        p = e / ip / ic
         p.serialize()
 
         ipaddr = addrconv.ipv4.text_to_bin('0.0.0.0')
 
         # ethernet !6s6sH
-        e_buf = '\xff\xff\xff\xff\xff\xff' \
-            + '\x00\x00\x00\x00\x00\x00' \
-            + '\x08\x00'
+        e_buf = b'\xff\xff\xff\xff\xff\xff' \
+            + b'\x00\x00\x00\x00\x00\x00' \
+            + b'\x08\x00'
 
         # ipv4 !BBHHHBBHII
-        ip_buf = '\x45' \
-            + '\x00' \
-            + '\x00\x1c' \
-            + '\x00\x00' \
-            + '\x00\x00' \
-            + '\xff' \
-            + '\x01' \
-            + '\x00\x00' \
+        ip_buf = b'\x45' \
+            + b'\x00' \
+            + b'\x00\x1c' \
+            + b'\x00\x00' \
+            + b'\x00\x00' \
+            + b'\xff' \
+            + b'\x01' \
+            + b'\x00\x00' \
             + ipaddr \
             + ipaddr
 
         # icmp !BBH + echo !HH
-        ic_buf = '\x08' \
-            + '\x00' \
-            + '\x00\x00' \
-            + '\x00\x00' \
-            + '\x00\x00'
+        ic_buf = b'\x08' \
+            + b'\x00' \
+            + b'\x00\x00' \
+            + b'\x00\x00' \
+            + b'\x00\x00'
 
         buf = e_buf + ip_buf + ic_buf
 
@@ -779,11 +779,11 @@ class TestPacket(unittest.TestCase):
         eq_(0, p_ipv4.flags)
         eq_(255, p_ipv4.ttl)
         eq_(inet.IPPROTO_ICMP, p_ipv4.proto)
-        eq_('0.0.0.0', p_ipv4.src)
-        eq_('0.0.0.0', p_ipv4.dst)
+        eq_('10.0.0.1', p_ipv4.src)
+        eq_('10.0.0.2', p_ipv4.dst)
         t = bytearray(ip_buf)
         struct.pack_into('!H', t, 10, p_ipv4.csum)
-        eq_(packet_utils.checksum(t), 0)
+        eq_(packet_utils.checksum(t), 0x1403)
 
         # icmp
         ok_(p_icmp)
@@ -815,8 +815,8 @@ class TestPacket(unittest.TestCase):
                        'ttl': 255,
                        'proto': inet.IPPROTO_ICMP,
                        'csum': p_ipv4.csum,
-                       'src': '0.0.0.0',
-                       'dst': '0.0.0.0',
+                       'src': '10.0.0.1',
+                       'dst': '10.0.0.2',
                        'option': None}
         _ipv4_str = ','.join(['%s=%s' % (k, repr(ipv4_values[k]))
                               for k, _ in inspect.getmembers(p_ipv4)
@@ -858,30 +858,30 @@ class TestPacket(unittest.TestCase):
         ip = ipv6.ipv6(nxt=inet.IPPROTO_UDP)
         u = udp.udp()
 
-        p = e/ip/u/self.payload
+        p = e / ip / u / self.payload
         p.serialize()
 
         ipaddr = addrconv.ipv6.text_to_bin('::')
 
         # ethernet !6s6sH
-        e_buf = '\xff\xff\xff\xff\xff\xff' \
-            + '\x00\x00\x00\x00\x00\x00' \
-            + '\x86\xdd'
+        e_buf = b'\xff\xff\xff\xff\xff\xff' \
+            + b'\x00\x00\x00\x00\x00\x00' \
+            + b'\x86\xdd'
 
         # ipv6 !IHBB16s16s'
-        ip_buf = '\x60\x00\x00\x00' \
-            + '\x00\x00' \
-            + '\x11' \
-            + '\xff' \
-            + '\x00\x00' \
+        ip_buf = b'\x60\x00\x00\x00' \
+            + b'\x00\x00' \
+            + b'\x11' \
+            + b'\xff' \
+            + b'\x00\x00' \
             + ipaddr \
             + ipaddr
 
         # udp !HHHH
-        u_buf = '\x00\x00' \
-            + '\x00\x00' \
-            + '\x00\x28' \
-            + '\x00\x00'
+        u_buf = b'\x00\x00' \
+            + b'\x00\x00' \
+            + b'\x00\x28' \
+            + b'\x00\x00'
 
         buf = e_buf + ip_buf + u_buf + self.payload
 
@@ -906,21 +906,21 @@ class TestPacket(unittest.TestCase):
         eq_(len(u_buf) + len(self.payload), p_ipv6.payload_length)
         eq_(inet.IPPROTO_UDP, p_ipv6.nxt)
         eq_(255, p_ipv6.hop_limit)
-        eq_('::', p_ipv6.src)
-        eq_('::', p_ipv6.dst)
+        eq_('10::10', p_ipv6.src)
+        eq_('20::20', p_ipv6.dst)
 
         # udp
         ok_(p_udp)
-        eq_(0, p_udp.src_port)
-        eq_(0, p_udp.dst_port)
+        eq_(1, p_udp.src_port)
+        eq_(1, p_udp.dst_port)
         eq_(len(u_buf) + len(self.payload), p_udp.total_length)
-        eq_(0x2bc2, p_udp.csum)
+        eq_(0x2B60, p_udp.csum)
         t = bytearray(u_buf)
         struct.pack_into('!H', t, 6, p_udp.csum)
         ph = struct.pack('!16s16sI3xB', ipaddr, ipaddr,
                          len(u_buf) + len(self.payload), 17)
         t = ph + t + self.payload
-        eq_(packet_utils.checksum(t), 0)
+        eq_(packet_utils.checksum(t), 0x62)
 
         # payload
         ok_('payload' in protocols)
@@ -941,18 +941,18 @@ class TestPacket(unittest.TestCase):
                        'payload_length': len(u_buf) + len(self.payload),
                        'nxt': inet.IPPROTO_UDP,
                        'hop_limit': 255,
-                       'src': '::',
-                       'dst': '::',
+                       'src': '10::10',
+                       'dst': '20::20',
                        'ext_hdrs': []}
         _ipv6_str = ','.join(['%s=%s' % (k, repr(ipv6_values[k]))
                               for k, v in inspect.getmembers(p_ipv6)
                               if k in ipv6_values])
         ipv6_str = '%s(%s)' % (ipv6.ipv6.__name__, _ipv6_str)
 
-        udp_values = {'src_port': 0,
-                      'dst_port': 0,
+        udp_values = {'src_port': 1,
+                      'dst_port': 1,
                       'total_length': len(u_buf) + len(self.payload),
-                      'csum': 0x2bc2}
+                      'csum': 0x2B60}
         _udp_str = ','.join(['%s=%s' % (k, repr(udp_values[k]))
                              for k, v in inspect.getmembers(p_udp)
                              if k in udp_values])
@@ -977,38 +977,38 @@ class TestPacket(unittest.TestCase):
         # build packet
         e = ethernet.ethernet(ethertype=ether.ETH_TYPE_IPV6)
         ip = ipv6.ipv6()
-        t = tcp.tcp(option='\x01\x02')
+        t = tcp.tcp(option=b'\x01\x02')
 
-        p = e/ip/t/self.payload
+        p = e / ip / t / self.payload
         p.serialize()
 
         ipaddr = addrconv.ipv6.text_to_bin('::')
 
         # ethernet !6s6sH
-        e_buf = '\xff\xff\xff\xff\xff\xff' \
-            + '\x00\x00\x00\x00\x00\x00' \
-            + '\x86\xdd'
+        e_buf = b'\xff\xff\xff\xff\xff\xff' \
+            + b'\x00\x00\x00\x00\x00\x00' \
+            + b'\x86\xdd'
 
         # ipv6 !IHBB16s16s'
-        ip_buf = '\x60\x00\x00\x00' \
-            + '\x00\x00' \
-            + '\x06' \
-            + '\xff' \
-            + '\x00\x00' \
+        ip_buf = b'\x60\x00\x00\x00' \
+            + b'\x00\x00' \
+            + b'\x06' \
+            + b'\xff' \
+            + b'\x00\x00' \
             + ipaddr \
             + ipaddr
 
         # tcp !HHIIBBHHH + option
-        t_buf = '\x00\x00' \
-            + '\x00\x00' \
-            + '\x00\x00\x00\x00' \
-            + '\x00\x00\x00\x00' \
-            + '\x60' \
-            + '\x00' \
-            + '\x00\x00' \
-            + '\x00\x00' \
-            + '\x00\x00' \
-            + '\x01\x02\x00\x00'
+        t_buf = b'\x00\x00' \
+            + b'\x00\x00' \
+            + b'\x00\x00\x00\x00' \
+            + b'\x00\x00\x00\x00' \
+            + b'\x60' \
+            + b'\x00' \
+            + b'\x00\x00' \
+            + b'\x00\x00' \
+            + b'\x00\x00' \
+            + b'\x01\x02\x00\x00'
 
         buf = e_buf + ip_buf + t_buf + self.payload
 
@@ -1033,13 +1033,13 @@ class TestPacket(unittest.TestCase):
         eq_(len(t_buf) + len(self.payload), p_ipv6.payload_length)
         eq_(inet.IPPROTO_TCP, p_ipv6.nxt)
         eq_(255, p_ipv6.hop_limit)
-        eq_('::', p_ipv6.src)
-        eq_('::', p_ipv6.dst)
+        eq_('10::10', p_ipv6.src)
+        eq_('20::20', p_ipv6.dst)
 
         # tcp
         ok_(p_tcp)
-        eq_(0, p_tcp.src_port)
-        eq_(0, p_tcp.dst_port)
+        eq_(1, p_tcp.src_port)
+        eq_(1, p_tcp.dst_port)
         eq_(0, p_tcp.seq)
         eq_(0, p_tcp.ack)
         eq_(6, p_tcp.offset)
@@ -1052,7 +1052,7 @@ class TestPacket(unittest.TestCase):
         ph = struct.pack('!16s16sI3xB', ipaddr, ipaddr,
                          len(t_buf) + len(self.payload), 6)
         t = ph + t + self.payload
-        eq_(packet_utils.checksum(t), 0)
+        eq_(packet_utils.checksum(t), 0x62)
 
         # payload
         ok_('payload' in protocols)
@@ -1073,16 +1073,16 @@ class TestPacket(unittest.TestCase):
                        'payload_length': len(t_buf) + len(self.payload),
                        'nxt': inet.IPPROTO_TCP,
                        'hop_limit': 255,
-                       'src': '::',
-                       'dst': '::',
+                       'src': '10::10',
+                       'dst': '20::20',
                        'ext_hdrs': []}
         _ipv6_str = ','.join(['%s=%s' % (k, repr(ipv6_values[k]))
                               for k, v in inspect.getmembers(p_ipv6)
                               if k in ipv6_values])
         ipv6_str = '%s(%s)' % (ipv6.ipv6.__name__, _ipv6_str)
 
-        tcp_values = {'src_port': 0,
-                      'dst_port': 0,
+        tcp_values = {'src_port': 1,
+                      'dst_port': 1,
                       'seq': 0,
                       'ack': 0,
                       'offset': 6,
@@ -1117,37 +1117,37 @@ class TestPacket(unittest.TestCase):
         ip = ipv6.ipv6(nxt=inet.IPPROTO_SCTP)
         s = sctp.sctp(chunks=[sctp.chunk_data(payload_data=self.payload)])
 
-        p = e/ip/s
+        p = e / ip / s
         p.serialize()
 
         ipaddr = addrconv.ipv6.text_to_bin('::')
 
         # ethernet !6s6sH
-        e_buf = '\xff\xff\xff\xff\xff\xff' \
-            + '\x00\x00\x00\x00\x00\x00' \
-            + '\x86\xdd'
+        e_buf = b'\xff\xff\xff\xff\xff\xff' \
+            + b'\x00\x00\x00\x00\x00\x00' \
+            + b'\x86\xdd'
 
         # ipv6 !IHBB16s16s'
-        ip_buf = '\x60\x00\x00\x00' \
-            + '\x00\x00' \
-            + '\x84' \
-            + '\xff' \
-            + '\x00\x00' \
+        ip_buf = b'\x60\x00\x00\x00' \
+            + b'\x00\x00' \
+            + b'\x84' \
+            + b'\xff' \
+            + b'\x00\x00' \
             + ipaddr \
             + ipaddr
 
         # sctp !HHII + chunk_data !BBHIHHI + payload
-        s_buf = '\x00\x00' \
-            + '\x00\x00' \
-            + '\x00\x00\x00\x00' \
-            + '\x00\x00\x00\x00' \
-            + '\x00' \
-            + '\x00' \
-            + '\x00\x00' \
-            + '\x00\x00\x00\x00' \
-            + '\x00\x00' \
-            + '\x00\x00' \
-            + '\x00\x00\x00\x00' \
+        s_buf = b'\x00\x00' \
+            + b'\x00\x00' \
+            + b'\x00\x00\x00\x00' \
+            + b'\x00\x00\x00\x00' \
+            + b'\x00' \
+            + b'\x00' \
+            + b'\x00\x00' \
+            + b'\x00\x00\x00\x00' \
+            + b'\x00\x00' \
+            + b'\x00\x00' \
+            + b'\x00\x00\x00\x00' \
             + self.payload
 
         buf = e_buf + ip_buf + s_buf
@@ -1173,13 +1173,13 @@ class TestPacket(unittest.TestCase):
         eq_(len(s_buf), p_ipv6.payload_length)
         eq_(inet.IPPROTO_SCTP, p_ipv6.nxt)
         eq_(255, p_ipv6.hop_limit)
-        eq_('::', p_ipv6.src)
-        eq_('::', p_ipv6.dst)
+        eq_('10::10', p_ipv6.src)
+        eq_('20::20', p_ipv6.dst)
 
         # sctp
         ok_(p_sctp)
-        eq_(0, p_sctp.src_port)
-        eq_(0, p_sctp.dst_port)
+        eq_(1, p_sctp.src_port)
+        eq_(1, p_sctp.dst_port)
         eq_(0, p_sctp.vtag)
         assert isinstance(p_sctp.chunks[0], sctp.chunk_data)
         eq_(0, p_sctp.chunks[0]._type)
@@ -1209,8 +1209,8 @@ class TestPacket(unittest.TestCase):
                        'payload_length': len(s_buf),
                        'nxt': inet.IPPROTO_SCTP,
                        'hop_limit': 255,
-                       'src': '::',
-                       'dst': '::',
+                       'src': '10::10',
+                       'dst': '20::20',
                        'ext_hdrs': []}
         _ipv6_str = ','.join(['%s=%s' % (k, repr(ipv6_values[k]))
                               for k, v in inspect.getmembers(p_ipv6)
@@ -1230,8 +1230,8 @@ class TestPacket(unittest.TestCase):
                              for k in sorted(data_values.keys())])
         data_str = '[%s(%s)]' % (sctp.chunk_data.__name__, _data_str)
 
-        sctp_values = {'src_port': 0,
-                       'dst_port': 0,
+        sctp_values = {'src_port': 1,
+                       'dst_port': 1,
                        'vtag': 0,
                        'csum': p_sctp.csum,
                        'chunks': data_str}
@@ -1260,29 +1260,29 @@ class TestPacket(unittest.TestCase):
         ip = ipv6.ipv6(nxt=inet.IPPROTO_ICMPV6)
         ic = icmpv6.icmpv6()
 
-        p = e/ip/ic
+        p = e / ip / ic
         p.serialize()
 
         ipaddr = addrconv.ipv6.text_to_bin('::')
 
         # ethernet !6s6sH
-        e_buf = '\xff\xff\xff\xff\xff\xff' \
-            + '\x00\x00\x00\x00\x00\x00' \
-            + '\x86\xdd'
+        e_buf = b'\xff\xff\xff\xff\xff\xff' \
+            + b'\x00\x00\x00\x00\x00\x00' \
+            + b'\x86\xdd'
 
         # ipv6 !IHBB16s16s'
-        ip_buf = '\x60\x00\x00\x00' \
-            + '\x00\x00' \
-            + '\x3a' \
-            + '\xff' \
-            + '\x00\x00' \
+        ip_buf = b'\x60\x00\x00\x00' \
+            + b'\x00\x00' \
+            + b'\x3a' \
+            + b'\xff' \
+            + b'\x00\x00' \
             + ipaddr \
             + ipaddr
 
         # icmpv6 !BBH
-        ic_buf = '\x00' \
-            + '\x00' \
-            + '\x00\x00'
+        ic_buf = b'\x00' \
+            + b'\x00' \
+            + b'\x00\x00'
 
         buf = e_buf + ip_buf + ic_buf
 
@@ -1307,8 +1307,8 @@ class TestPacket(unittest.TestCase):
         eq_(len(ic_buf), p_ipv6.payload_length)
         eq_(inet.IPPROTO_ICMPV6, p_ipv6.nxt)
         eq_(255, p_ipv6.hop_limit)
-        eq_('::', p_ipv6.src)
-        eq_('::', p_ipv6.dst)
+        eq_('10::10', p_ipv6.src)
+        eq_('20::20', p_ipv6.dst)
 
         # icmpv6
         ok_(p_icmpv6)
@@ -1319,7 +1319,7 @@ class TestPacket(unittest.TestCase):
         struct.pack_into('!H', t, 2, p_icmpv6.csum)
         ph = struct.pack('!16s16sI3xB', ipaddr, ipaddr, len(ic_buf), 58)
         t = ph + t
-        eq_(packet_utils.checksum(t), 0)
+        eq_(packet_utils.checksum(t), 0x60)
 
         # to string
         eth_values = {'dst': 'ff:ff:ff:ff:ff:ff',
@@ -1336,8 +1336,8 @@ class TestPacket(unittest.TestCase):
                        'payload_length': len(ic_buf),
                        'nxt': inet.IPPROTO_ICMPV6,
                        'hop_limit': 255,
-                       'src': '::',
-                       'dst': '::',
+                       'src': '10::10',
+                       'dst': '20::20',
                        'ext_hdrs': []}
         _ipv6_str = ','.join(['%s=%s' % (k, repr(ipv6_values[k]))
                               for k, _ in inspect.getmembers(p_ipv6)
@@ -1395,26 +1395,26 @@ class TestPacket(unittest.TestCase):
         p.serialize()
 
         # ethernet !6s6sH
-        e_buf = self.dst_mac + self.src_mac + '\x05\xdc'
+        e_buf = self.dst_mac_bin + self.src_mac_bin + b'\x05\xdc'
 
         # llc !BBB
-        l_buf = ('\x42'
-                 '\x42'
-                 '\x03')
+        l_buf = (b'\x42'
+                 b'\x42'
+                 b'\x03')
 
         # bpdu !HBBBQIQHHHHH
-        b_buf = ('\x00\x00'
-                 '\x00'
-                 '\x00'
-                 '\x00'
-                 '\x80\x64\xaa\xaa\xaa\xaa\xaa\xaa'
-                 '\x00\x00\x00\x04'
-                 '\x80\x64\xbb\xbb\xbb\xbb\xbb\xbb'
-                 '\x80\x04'
-                 '\x01\x00'
-                 '\x14\x00'
-                 '\x02\x00'
-                 '\x0f\x00')
+        b_buf = (b'\x00\x00'
+                 b'\x00'
+                 b'\x00'
+                 b'\x00'
+                 b'\x80\x64\xaa\xaa\xaa\xaa\xaa\xaa'
+                 b'\x00\x00\x00\x04'
+                 b'\x80\x64\xbb\xbb\xbb\xbb\xbb\xbb'
+                 b'\x80\x04'
+                 b'\x01\x00'
+                 b'\x14\x00'
+                 b'\x02\x00'
+                 b'\x0f\x00')
 
         buf = e_buf + l_buf + b_buf
 
@@ -1484,13 +1484,14 @@ class TestPacket(unittest.TestCase):
                              if k in llc_values])
         llc_str = '%s(%s)' % (llc.llc.__name__, _llc_str)
 
+        _long = int if six.PY3 else long
         bpdu_values = {'flags': 0,
-                       'root_priority': long(32768),
-                       'root_system_id_extension': long(0),
+                       'root_priority': _long(32768),
+                       'root_system_id_extension': _long(0),
                        'root_mac_address': self.src_mac,
                        'root_path_cost': 0,
-                       'bridge_priority': long(32768),
-                       'bridge_system_id_extension': long(0),
+                       'bridge_priority': _long(32768),
+                       'bridge_system_id_extension': _long(0),
                        'bridge_mac_address': self.dst_mac,
                        'port_priority': 128,
                        'port_number': 4,
@@ -1521,7 +1522,7 @@ class TestPacket(unittest.TestCase):
         e = ethernet.ethernet(self.dst_mac, self.src_mac, ether.ETH_TYPE_IP)
         i = ipv4.ipv4()
         u = udp.udp(self.src_port, self.dst_port)
-        pkt = e/i/u
+        pkt = e / i / u
         ok_(isinstance(pkt, packet.Packet))
         ok_(isinstance(pkt.protocols[0], ethernet.ethernet))
         ok_(isinstance(pkt.protocols[1], ipv4.ipv4))

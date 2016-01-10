@@ -16,9 +16,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import print_function
+
 import base64
 import collections
 import inspect
+import six
 
 
 # Some arguments to __init__ is mungled in order to avoid name conflicts
@@ -37,7 +40,13 @@ import inspect
 # grep __init__ *.py | grep '[^_]_\>' showed that
 # 'len', 'property', 'set', 'type'
 # A bit more generic way is adopted
-import __builtin__
+try:
+    # Python 2
+    import __builtin__
+except ImportError:
+    # Python 3
+    import builtins as __builtin__
+
 _RESERVED_KEYWORD = dir(__builtin__)
 
 
@@ -53,26 +62,63 @@ class TypeDescr(object):
 class AsciiStringType(TypeDescr):
     @staticmethod
     def encode(v):
-        return unicode(v, 'ascii')
+        # TODO: AsciiStringType data should probably be stored as
+        # text_type in class data.  This isinstance() check exists
+        # because OFPDescStats violates this.
+        if six.PY3 and isinstance(v, six.text_type):
+            return v
+        return six.text_type(v, 'ascii')
 
     @staticmethod
     def decode(v):
+        if six.PY3:
+            return v
         return v.encode('ascii')
 
 
 class Utf8StringType(TypeDescr):
     @staticmethod
     def encode(v):
-        return unicode(v, 'utf-8')
+        return six.text_type(v, 'utf-8')
 
     @staticmethod
     def decode(v):
         return v.encode('utf-8')
 
 
+class AsciiStringListType(TypeDescr):
+    @staticmethod
+    def encode(v):
+        return [AsciiStringType.encode(x) for x in v]
+
+    @staticmethod
+    def decode(v):
+        return [AsciiStringType.decode(x) for x in v]
+
+
+class NXFlowSpecFieldType(TypeDescr):
+    # ("field_name", 0) <-> ["field_name", 0]
+
+    @staticmethod
+    def encode(v):
+        if not isinstance(v, tuple):
+            return v
+        field, ofs = v
+        return [field, ofs]
+
+    @staticmethod
+    def decode(v):
+        if not isinstance(v, list):
+            return v
+        field, ofs = v
+        return (field, ofs)
+
+
 _types = {
     'ascii': AsciiStringType,
     'utf-8': Utf8StringType,
+    'asciilist': AsciiStringListType,
+    'nx-flow-spec-field': NXFlowSpecFieldType,  # XXX this should not be here
 }
 
 
@@ -86,12 +132,13 @@ class StringifyMixin(object):
 
     Currently the following types are implemented.
 
-    ===== ==========
-    Type  Descrption
-    ===== ==========
-    ascii US-ASCII
-    utf-8 UTF-8
-    ===== ==========
+    ========= =============
+    Type      Descrption
+    ========= =============
+    ascii     US-ASCII
+    utf-8     UTF-8
+    asciilist list of ascii
+    ========= =============
 
     Example::
         _TYPE = {
@@ -105,6 +152,7 @@ class StringifyMixin(object):
     """
 
     _class_prefixes = []
+    _class_suffixes = []
 
     def stringify_attrs(self):
         """an override point for sub classes"""
@@ -127,18 +175,21 @@ class StringifyMixin(object):
         assert isinstance(dict_, dict)
         if len(dict_) != 1:
             return False
-        k = dict_.keys()[0]
-        if not isinstance(k, (bytes, unicode)):
+        k = list(dict_.keys())[0]
+        if not isinstance(k, (bytes, six.text_type)):
             return False
         for p in cls._class_prefixes:
             if k.startswith(p):
+                return True
+        for p in cls._class_suffixes:
+            if k.endswith(p):
                 return True
         return False
 
     @classmethod
     def _get_type(cls, k):
         if hasattr(cls, '_TYPE'):
-            for t, attrs in cls._TYPE.iteritems():
+            for t, attrs in cls._TYPE.items():
                 if k in attrs:
                     return _types[t]
         return None
@@ -157,10 +208,14 @@ class StringifyMixin(object):
     @classmethod
     def _get_default_encoder(cls, encode_string):
         def _encode(v):
-            if isinstance(v, (bytes, unicode)):
+            if isinstance(v, (bytes, six.text_type)):
+                if isinstance(v, six.text_type):
+                    v = v.encode('utf-8')
                 json_value = encode_string(v)
+                if six.PY3:
+                    json_value = json_value.decode('ascii')
             elif isinstance(v, list):
-                json_value = map(_encode, v)
+                json_value = list(map(_encode, v))
             elif isinstance(v, dict):
                 json_value = _mapdict(_encode, v)
                 # while a python dict key can be any hashable object,
@@ -192,6 +247,8 @@ class StringifyMixin(object):
 
         This method takes the following arguments.
 
+        .. tabularcolumns:: |l|L|
+
         =============  =====================================================
         Argument       Description
         =============  =====================================================
@@ -218,7 +275,7 @@ class StringifyMixin(object):
     @classmethod
     def obj_from_jsondict(cls, jsondict, **additional_args):
         assert len(jsondict) == 1
-        for k, v in jsondict.iteritems():
+        for k, v in jsondict.items():
             obj_cls = cls.cls_from_jsondict_key(k)
             return obj_cls.from_jsondict(v, **additional_args)
 
@@ -237,10 +294,10 @@ class StringifyMixin(object):
     @classmethod
     def _get_default_decoder(cls, decode_string):
         def _decode(json_value, **additional_args):
-            if isinstance(json_value, (bytes, unicode)):
+            if isinstance(json_value, (bytes, six.text_type)):
                 v = decode_string(json_value)
             elif isinstance(json_value, list):
-                v = map(_decode, json_value)
+                v = list(map(_decode, json_value))
             elif isinstance(json_value, dict):
                 if cls._is_class(json_value):
                     v = cls.obj_from_jsondict(json_value, **additional_args)
@@ -275,6 +332,8 @@ class StringifyMixin(object):
 
         This method takes the following arguments.
 
+        .. tabularcolumns:: |l|L|
+
         =============== =====================================================
         Argument        Descrpition
         =============== =====================================================
@@ -294,10 +353,10 @@ class StringifyMixin(object):
         try:
             return cls(**dict(kwargs, **additional_args))
         except TypeError:
-            #debug
-            print "CLS", cls
-            print "ARG", dict_
-            print "KWARG", kwargs
+            # debug
+            print("CLS %s" % cls)
+            print("ARG %s" % dict_)
+            print("KWARG %s" % kwargs)
             raise
 
     @classmethod

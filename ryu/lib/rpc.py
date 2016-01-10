@@ -20,6 +20,7 @@
 # http://wiki.msgpack.org/display/MSGPACK/RPC+specification
 
 import msgpack
+import six
 
 
 class MessageType(object):
@@ -49,7 +50,7 @@ class MessageEncoder(object):
         return this_id
 
     def create_request(self, method, params):
-        assert isinstance(method, str)
+        assert isinstance(method, six.binary_type)
         assert isinstance(params, list)
         msgid = self._create_msgid()
         return (self._packer.pack([MessageType.REQUEST, msgid, method,
@@ -62,7 +63,7 @@ class MessageEncoder(object):
         return self._packer.pack([MessageType.RESPONSE, msgid, error, result])
 
     def create_notification(self, method, params):
-        assert isinstance(method, str)
+        assert isinstance(method, six.binary_type)
         assert isinstance(params, list)
         return self._packer.pack([MessageType.NOTIFY, method, params])
 
@@ -202,7 +203,7 @@ class EndPoint(object):
             # bogus msgid
             # XXXwarn
             return
-        assert not msgid in self._responses
+        assert msgid not in self._responses
         self._responses[msgid] = (error, result)
         self._incoming += 1
 

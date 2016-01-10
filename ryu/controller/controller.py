@@ -14,6 +14,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+The main component of OpenFlow controller.
+
+- Handle connections from switches
+- Generate and route events to appropriate entities like Ryu applications
+
+"""
+
 import contextlib
 from ryu import cfg
 import logging
@@ -22,7 +30,8 @@ from ryu.lib.hub import StreamServer
 import traceback
 import random
 import ssl
-from socket import IPPROTO_TCP, TCP_NODELAY
+from socket import IPPROTO_TCP, TCP_NODELAY, timeout as SocketTimeout, error as SocketError
+import warnings
 
 import ryu.base.app_manager
 
@@ -48,7 +57,8 @@ CONF.register_cli_opts([
                help='openflow ssl listen port'),
     cfg.StrOpt('ctl-privkey', default=None, help='controller private key'),
     cfg.StrOpt('ctl-cert', default=None, help='controller certificate'),
-    cfg.StrOpt('ca-certs', default=None, help='CA certificates')
+    cfg.StrOpt('ca-certs', default=None, help='CA certificates'),
+    cfg.FloatOpt('socket-timeout', default=5.0, help='Time, in seconds, to await completion of socket operations.')
 ])
 
 
@@ -58,7 +68,7 @@ class OpenFlowController(object):
 
     # entry point
     def __call__(self):
-        #LOG.debug('call')
+        # LOG.debug('call')
         self.server_loop()
 
     def server_loop(self):
@@ -84,7 +94,7 @@ class OpenFlowController(object):
                                    CONF.ofp_tcp_listen_port),
                                   datapath_connection_factory)
 
-        #LOG.debug('loop')
+        # LOG.debug('loop')
         server.serve_forever()
 
 
@@ -93,7 +103,8 @@ def _deactivate(method):
         try:
             method(self)
         finally:
-            self.is_active = False
+            self.send_active = False
+            self.set_state(handler.DEAD_DISPATCHER)
     return deactivate
 
 
@@ -103,8 +114,11 @@ class Datapath(ofproto_protocol.ProtocolDesc):
 
         self.socket = socket
         self.socket.setsockopt(IPPROTO_TCP, TCP_NODELAY, 1)
+        self.socket.settimeout(CONF.socket_timeout)
         self.address = address
-        self.is_active = True
+
+        self.send_active = True
+        self.close_requested = False
 
         # The limit is arbitrary. We need to limit queue size to
         # prevent it from eating memory up
@@ -112,13 +126,33 @@ class Datapath(ofproto_protocol.ProtocolDesc):
 
         self.xid = random.randint(0, self.ofproto.MAX_XID)
         self.id = None  # datapath_id is unknown yet
-        self.ports = None
+        self._ports = None
         self.flow_format = ofproto_v1_0.NXFF_OPENFLOW10
         self.ofp_brick = ryu.base.app_manager.lookup_service_brick('ofp_event')
         self.set_state(handler.HANDSHAKE_DISPATCHER)
 
+    def _get_ports(self):
+        if (self.ofproto_parser is not None and
+                self.ofproto_parser.ofproto.OFP_VERSION >= 0x04):
+            message = (
+                'Datapath#ports is kept for compatibility with the previous '
+                'openflow versions (< 1.3). '
+                'This not be updated by EventOFPPortStatus message. '
+                'If you want to be updated, you can use '
+                '\'ryu.controller.dpset\' or \'ryu.topology.switches\'.'
+            )
+            warnings.warn(message, stacklevel=2)
+        return self._ports
+
+    def _set_ports(self, ports):
+        self._ports = ports
+
+    # To show warning when Datapath#ports is read
+    ports = property(_get_ports, _set_ports)
+
+    @_deactivate
     def close(self):
-        self.set_state(handler.DEAD_DISPATCHER)
+        self.close_requested = True
 
     def set_state(self, state):
         self.state = state
@@ -133,11 +167,21 @@ class Datapath(ofproto_protocol.ProtocolDesc):
         required_len = ofproto_common.OFP_HEADER_SIZE
 
         count = 0
-        while self.is_active:
-            ret = self.socket.recv(required_len)
-            if len(ret) == 0:
-                self.is_active = False
+        while True:
+            ret = ""
+
+            try:
+                ret = self.socket.recv(required_len)
+            except SocketTimeout:
+                if not self.close_requested:
+                    continue
+            except SocketError:
+                self.close_requested = True
+
+            if (len(ret) == 0) or (self.close_requested):
+                self.socket.close()
                 break
+
             buf += ret
             while len(buf) >= required_len:
                 (version, msg_type, msg_len, xid) = ofproto_parser.header(buf)
@@ -145,9 +189,9 @@ class Datapath(ofproto_protocol.ProtocolDesc):
                 if len(buf) < required_len:
                     break
 
-                msg = ofproto_parser.msg(self,
-                                         version, msg_type, msg_len, xid, buf)
-                #LOG.debug('queue msg %s cls %s', msg, msg.__class__)
+                msg = ofproto_parser.msg(
+                    self, version, msg_type, msg_len, xid, buf[:msg_len])
+                # LOG.debug('queue msg %s cls %s', msg, msg.__class__)
                 if msg:
                     ev = ofp_event.ofp_msg_to_ev(msg)
                     self.ofp_brick.send_event_to_observers(ev, self.state)
@@ -174,9 +218,12 @@ class Datapath(ofproto_protocol.ProtocolDesc):
     @_deactivate
     def _send_loop(self):
         try:
-            while self.is_active:
+            while self.send_active:
                 buf = self.send_q.get()
                 self.socket.sendall(buf)
+        except IOError as ioe:
+            LOG.debug("Socket error while sending data to switch at address %s: [%d] %s",
+                      self.address, ioe.errno, ioe.strerror)
         finally:
             q = self.send_q
             # first, clear self.send_q to prevent new references.

@@ -14,6 +14,7 @@
 # limitations under the License.
 
 import array
+import six
 import socket
 import struct
 from ryu.lib import addrconv
@@ -25,10 +26,10 @@ def carry_around_add(a, b):
 
 
 def checksum(data):
+    data = six.binary_type(data)    # input can be bytearray.
     if len(data) % 2:
-        data += '\x00'
+        data += b'\x00'
 
-    data = str(data)    # input can be bytearray.
     s = sum(array.array('H', data))
     s = (s & 0xffff) + (s >> 16)
     s += (s >> 16)
@@ -113,11 +114,11 @@ def fletcher_checksum(data, offset):
     pos = 0
     length = len(data)
     data = bytearray(data)
-    data[offset:offset+2] = [0]*2
+    data[offset:offset + 2] = [0] * 2
 
     while pos < length:
         tlen = min(length - pos, _MODX)
-        for d in data[pos:pos+tlen]:
+        for d in data[pos:pos + tlen]:
             c0 += d
             c1 += c0
         c0 %= 255
@@ -132,5 +133,5 @@ def fletcher_checksum(data, offset):
         y -= 255
 
     data[offset] = x
-    data[offset+1] = y
+    data[offset + 1] = y
     return (x << 8) | (y & 0xff)

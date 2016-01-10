@@ -62,11 +62,11 @@ class RpcVRRPManager(app_manager.RyuApp):
             error = None
             result = None
             try:
-                if target_method == "vrrp_config":
+                if target_method == b'vrrp_config':
                     result = self._config(msgid, params)
-                elif target_method == "vrrp_list":
+                elif target_method == b'vrrp_list':
                     result = self._list(msgid, params)
-                elif target_method == "vrrp_config_change":
+                elif target_method == b'vrrp_config_change':
                     result = self._config_change(msgid, params)
                 else:
                     error = 'Unknown method %s' % (target_method)
@@ -83,7 +83,7 @@ class RpcVRRPManager(app_manager.RyuApp):
         peer = Peer(self._rpc_events)
         table = {
             rpc.MessageType.REQUEST: peer._handle_vrrp_request,
-            }
+        }
         peer._endpoint = rpc.EndPoint(new_sock, disp_table=table)
         self._peers.append(peer)
         hub.spawn(self._peer_loop_thread, peer)
@@ -129,6 +129,8 @@ class RpcVRRPManager(app_manager.RyuApp):
                                               'preempt_delay',
                                               'statistics_interval'))
         try:
+            ip_addr = config_params.pop('ip_addresses')
+            config_params['ip_addresses'] = [ip_addr]
             config = vrrp_event.VRRPConfig(**config_params)
         except:
             raise RPCError('parameters are invalid, %s' % (str(param_dict)))
@@ -179,7 +181,7 @@ class RpcVRRPManager(app_manager.RyuApp):
                 "advertisement_interval": c.advertisement_interval,
                 "priority": c.priority,
                 "virtual_ip_address": str(netaddr.IPAddress(c.ip_addresses[0]))
-                }
+            }
             ret_list.append(info_dict)
         return ret_list
 

@@ -19,18 +19,26 @@
 import logging
 import socket
 
-from ryu.lib.packet.bgp import BGPUpdate
-from ryu.lib.packet.bgp import RF_IPv4_UC
-from ryu.lib.packet.bgp import RF_IPv4_VPN
-from ryu.lib.packet.bgp import RF_IPv6_VPN
-from ryu.lib.packet.bgp import RF_RTC_UC
-from ryu.lib.packet.bgp import RouteTargetMembershipNLRI
-from ryu.lib.packet.bgp import BGP_ATTR_TYPE_MULTI_EXIT_DISC
-from ryu.lib.packet.bgp import BGPPathAttributeMultiExitDisc
-from ryu.lib.packet.bgp import BGPPathAttributeMpUnreachNLRI
-from ryu.lib.packet.bgp import BGPPathAttributeUnknown
+from ryu.lib.packet.bgp import (
+    BGPUpdate,
+    RF_IPv4_UC,
+    RF_IPv6_UC,
+    RF_IPv4_VPN,
+    RF_IPv6_VPN,
+    RF_RTC_UC,
+    RouteTargetMembershipNLRI,
+    BGP_ATTR_TYPE_MULTI_EXIT_DISC,
+    BGPPathAttributeMultiExitDisc,
+    BGPPathAttributeMpUnreachNLRI,
+    BGPPathAttributeAs4Path,
+    BGPPathAttributeAs4Aggregator,
+    BGPPathAttributeUnknown,
+    BGP_ATTR_FLAG_OPTIONAL,
+    BGP_ATTR_FLAG_TRANSITIVE,
+)
 from ryu.services.protocols.bgp.info_base.rtc import RtcPath
 from ryu.services.protocols.bgp.info_base.ipv4 import Ipv4Path
+from ryu.services.protocols.bgp.info_base.ipv6 import Ipv6Path
 from ryu.services.protocols.bgp.info_base.vpnv4 import Vpnv4Path
 from ryu.services.protocols.bgp.info_base.vpnv6 import Vpnv6Path
 
@@ -39,6 +47,7 @@ LOG = logging.getLogger('utils.bgp')
 
 # RouteFmaily to path sub-class mapping.
 _ROUTE_FAMILY_TO_PATH_MAP = {RF_IPv4_UC: Ipv4Path,
+                             RF_IPv6_UC: Ipv6Path,
                              RF_IPv4_VPN: Vpnv4Path,
                              RF_IPv6_VPN: Vpnv6Path,
                              RF_RTC_UC: RtcPath}
@@ -91,26 +100,30 @@ def from_inet_ptoi(bgp_id):
     four_byte_id = None
     try:
         packed_byte = socket.inet_pton(socket.AF_INET, bgp_id)
-        four_byte_id = long(packed_byte.encode('hex'), 16)
+        four_byte_id = int(packed_byte.encode('hex'), 16)
     except ValueError:
-        LOG.debug('Invalid bgp id given for conversion to integer value %s' %
+        LOG.debug('Invalid bgp id given for conversion to integer value %s',
                   bgp_id)
 
     return four_byte_id
 
 
-def get_unknow_opttrans_attr(path):
-    """Utility method that gives a `dict` of unknown optional transitive
-    path attributes of `path`.
+def get_unknown_opttrans_attr(path):
+    """Utility method that gives a `dict` of unknown and unsupported optional
+    transitive path attributes of `path`.
 
     Returns dict: <key> - attribute type code, <value> - unknown path-attr.
     """
     path_attrs = path.pathattr_map
     unknown_opt_tran_attrs = {}
-    for _, attr in path_attrs.iteritems():
+    for _, attr in path_attrs.items():
         if (isinstance(attr, BGPPathAttributeUnknown) and
-                attr.is_optional_transitive()):
-            unknown_opt_tran_attrs[attr.type_code] = attr
+                attr.flags & (BGP_ATTR_FLAG_OPTIONAL |
+                              BGP_ATTR_FLAG_TRANSITIVE)) or \
+                isinstance(attr, BGPPathAttributeAs4Path) or \
+                isinstance(attr, BGPPathAttributeAs4Aggregator):
+            unknown_opt_tran_attrs[attr.type] = attr
+
     return unknown_opt_tran_attrs
 
 

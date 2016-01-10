@@ -14,8 +14,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+Basic OpenFlow handling including negotiation.
+"""
+
 import itertools
 import logging
+import warnings
 
 import ryu.base.app_manager
 
@@ -26,6 +31,7 @@ from ryu.controller.controller import OpenFlowController
 from ryu.controller.handler import set_ev_handler
 from ryu.controller.handler import HANDSHAKE_DISPATCHER, CONFIG_DISPATCHER,\
     MAIN_DISPATCHER
+from ryu.ofproto import ofproto_parser
 
 
 # The state transition: HANDSHAKE -> CONFIG -> MAIN
@@ -175,13 +181,13 @@ class OFPHandler(ryu.base.app_manager.RyuApp):
             return
         datapath.set_version(max(usable_versions))
 
-        # now send feature
-        features_reqeust = datapath.ofproto_parser.OFPFeaturesRequest(datapath)
-        datapath.send_msg(features_reqeust)
-
-        # now move on to config state
+        # Move on to config state
         self.logger.debug('move onto config mode')
         datapath.set_state(CONFIG_DISPATCHER)
+
+        # Finally, send feature request
+        features_request = datapath.ofproto_parser.OFPFeaturesRequest(datapath)
+        datapath.send_msg(features_request)
 
     @set_ev_handler(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
     def switch_features_handler(self, ev):
@@ -200,14 +206,6 @@ class OFPHandler(ryu.base.app_manager.RyuApp):
         else:
             datapath.ports = {}
 
-        ofproto = datapath.ofproto
-        ofproto_parser = datapath.ofproto_parser
-        set_config = ofproto_parser.OFPSetConfig(
-            datapath, ofproto.OFPC_FRAG_NORMAL,
-            128  # TODO:XXX
-        )
-        datapath.send_msg(set_config)
-
         if datapath.ofproto.OFP_VERSION < 0x04:
             self.logger.debug('move onto main mode')
             ev.msg.datapath.set_state(MAIN_DISPATCHER)
@@ -220,8 +218,10 @@ class OFPHandler(ryu.base.app_manager.RyuApp):
     def multipart_reply_handler(self, ev):
         msg = ev.msg
         datapath = msg.datapath
-        for port in msg.body:
-            datapath.ports[port.port_no] = port
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore')
+            for port in msg.body:
+                datapath.ports[port.port_no] = port
 
         if msg.flags & datapath.ofproto.OFPMPF_REPLY_MORE:
             return
@@ -242,5 +242,23 @@ class OFPHandler(ryu.base.app_manager.RyuApp):
                     [HANDSHAKE_DISPATCHER, CONFIG_DISPATCHER, MAIN_DISPATCHER])
     def error_msg_handler(self, ev):
         msg = ev.msg
-        self.logger.debug('error msg ev %s type 0x%x code 0x%x %s',
-                          msg, msg.type, msg.code, utils.hex_array(msg.data))
+        ofp = msg.datapath.ofproto
+        (version, msg_type, msg_len, xid) = ofproto_parser.header(msg.data)
+        self.logger.debug('EventOFPErrorMsg received.')
+        self.logger.debug(
+            'version=%s, msg_type=%s, msg_len=%s, xid=%s', hex(msg.version),
+            hex(msg.msg_type), hex(msg.msg_len), hex(msg.xid))
+        self.logger.debug(
+            ' `-- msg_type: %s', ofp.ofp_msg_type_to_str(msg.msg_type))
+        self.logger.debug(
+            "OFPErrorMsg(type=%s, code=%s, data=b'%s')", hex(msg.type),
+            hex(msg.code), utils.binary_str(msg.data))
+        self.logger.debug(
+            ' |-- type: %s', ofp.ofp_error_type_to_str(msg.type))
+        self.logger.debug(
+            ' |-- code: %s', ofp.ofp_error_code_to_str(msg.type, msg.code))
+        self.logger.debug(
+            ' `-- data: version=%s, msg_type=%s, msg_len=%s, xid=%s',
+            hex(version), hex(msg_type), hex(msg_len), hex(xid))
+        self.logger.debug(
+            '     `-- msg_type: %s', ofp.ofp_msg_type_to_str(msg_type))

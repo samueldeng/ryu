@@ -14,6 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import print_function
+
 import unittest
 from nose.tools import ok_, eq_, timed, nottest
 
@@ -96,7 +98,7 @@ class TestWithOVS12(unittest.TestCase):
                 time.sleep(1)
                 continue
 
-            print "ryu-manager: %s" % line
+            print("ryu-manager: %s" % line)
             if line.find('TEST_FINISHED') != -1:
                 ok_(line.find('Completed=[True]') != -1)
                 p.terminate()

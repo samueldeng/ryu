@@ -14,12 +14,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This module provides a set of REST API for switch configuration.
-#   - Per-switch Key-Value store
-#
-# Used by OpenStack Ryu agent.
+"""
+This module provides a set of REST API for switch configuration.
+- Per-switch Key-Value store
 
-import httplib
+Used by OpenStack Ryu agent.
+"""
+
+from six.moves import http_client
 import json
 import logging
 from webob import Response
@@ -70,7 +72,7 @@ class ConfSwitchController(ControllerBase):
         try:
             ret = func(dpid)
         except KeyError:
-            return Response(status=httplib.NOT_FOUND,
+            return Response(status=http_client.NOT_FOUND,
                             body='no dpid is found %s' %
                             dpid_lib.dpid_to_str(dpid))
 
@@ -82,7 +84,7 @@ class ConfSwitchController(ControllerBase):
             return None
 
         def _ret(_ret):
-            return Response(status=httplib.ACCEPTED)
+            return Response(status=http_client.ACCEPTED)
 
         return self._do_switch(dpid, _delete_switch, _ret)
 
@@ -102,7 +104,7 @@ class ConfSwitchController(ControllerBase):
         try:
             ret = func(dpid, key)
         except KeyError:
-            return Response(status=httplib.NOT_FOUND,
+            return Response(status=http_client.NOT_FOUND,
                             body='no dpid/key is found %s %s' %
                             (dpid_lib.dpid_to_str(dpid), key))
         return ret_func(ret)
@@ -114,7 +116,7 @@ class ConfSwitchController(ControllerBase):
             return None
 
         def _ret(_ret):
-            return Response(status=httplib.CREATED)
+            return Response(status=http_client.CREATED)
 
         return self._do_key(dpid, key, _set_val, _ret)
 

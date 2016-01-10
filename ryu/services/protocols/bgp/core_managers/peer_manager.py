@@ -1,8 +1,10 @@
 import logging
+import netaddr
 
 from ryu.services.protocols.bgp.base import SUPPORTED_GLOBAL_RF
 from ryu.services.protocols.bgp.model import OutgoingRoute
 from ryu.services.protocols.bgp.peer import Peer
+from ryu.lib.packet.bgp import BGPPathAttributeCommunities
 from ryu.lib.packet.bgp import BGP_ATTR_TYPE_MULTI_EXIT_DISC
 from ryu.lib.packet.bgp import BGP_ATTR_TYPE_COMMUNITIES
 from ryu.lib.packet.bgp import RF_IPv4_UC
@@ -10,6 +12,7 @@ from ryu.lib.packet.bgp import RF_IPv6_UC
 from ryu.lib.packet.bgp import RF_IPv4_VPN
 from ryu.lib.packet.bgp import RF_IPv6_VPN
 from ryu.lib.packet.bgp import RF_RTC_UC
+from ryu.lib.packet.bgp import RouteTargetMembershipNLRI
 from ryu.services.protocols.bgp.utils.bgp \
     import clone_path_and_update_med_for_target_neighbor
 LOG = logging.getLogger('bgpspeaker.core_managers.peer_manager')
@@ -33,7 +36,7 @@ class PeerManager(object):
 
     @property
     def iterpeers(self):
-        return self._peers.itervalues()
+        return iter(self._peers.values())
 
     def set_peer_to_rtfilter_map(self, new_map):
         self._peer_to_rtfilter_map = new_map
@@ -52,21 +55,21 @@ class PeerManager(object):
         self._core_service.on_peer_removed(peer)
 
     def get_by_addr(self, addr):
-        return self._peers.get(addr)
+        return self._peers.get(str(netaddr.IPAddress(addr)))
 
     def on_peer_down(self, peer):
         """Peer down handler.
 
         Cleans up the paths in global tables that was received from this peer.
         """
-        LOG.debug('Cleaning obsolete paths whose source/version: %s/%s' %
-                  (peer.ip_address, peer.version_num))
+        LOG.debug('Cleaning obsolete paths whose source/version: %s/%s',
+                  peer.ip_address, peer.version_num)
         # Launch clean-up for each global tables.
         self._table_manager.clean_stale_routes(peer)
 
     def _get_non_rtc_peers(self):
         non_rtc_peer_list = set()
-        for peer in self._peers.itervalues():
+        for peer in self._peers.values():
             if (peer.in_established() and
                     not peer.is_mpbgp_cap_valid(RF_RTC_UC)):
                 non_rtc_peer_list.add(peer)
@@ -78,7 +81,7 @@ class PeerManager(object):
     def get_peers_in_established(self):
         """Returns list of peers in established state."""
         est_peers = []
-        for peer in self._peers.itervalues():
+        for peer in self._peers.values():
             if peer.in_established:
                 est_peers.append(peer)
         return est_peers
@@ -104,7 +107,7 @@ class PeerManager(object):
             route_family
         )
 
-        for destination in table.itervalues():
+        for destination in table.values():
             # Check if this destination's sent - routes include this peer.
             # i.e. check if this destinations was advertised and enqueue
             # the path only if it was. If the current best-path has not been
@@ -136,7 +139,7 @@ class PeerManager(object):
         Skips making request to peer that have valid RTC capability.
         """
         assert route_family != RF_RTC_UC
-        for peer in self._peers.itervalues():
+        for peer in self._peers.values():
             # First check if peer is in established state
             if (peer.in_established and
                 # Check if peer has valid capability for given address
@@ -155,8 +158,8 @@ class PeerManager(object):
         requests are ignored. Raises appropriate error in other cases. If
         `peer_ip` is equal to 'all' makes refresh request to all valid peers.
         """
-        LOG.debug('Route refresh requested for peer %s and route families %s'
-                  % (peer_ip, route_families))
+        LOG.debug('Route refresh requested for peer %s and route families %s',
+                  peer_ip, route_families)
         if not SUPPORTED_GLOBAL_RF.intersection(route_families):
             raise ValueError('Given route family(s) % is not supported.' %
                              route_families)
@@ -196,7 +199,7 @@ class PeerManager(object):
         peer_rtc_as = neigh_conf.rtc_as
         # Iterate over all RT_NLRI destination communicate qualifying RT_NLRIs
         rtc_table = self._table_manager.get_rtc_table()
-        for dest in rtc_table.itervalues():
+        for dest in rtc_table.values():
             best_path = dest.best_path
             # Ignore a destination that currently does not have best path
             if not best_path:
@@ -228,7 +231,7 @@ class PeerManager(object):
             if route_family == RF_RTC_UC:
                 continue
             if peer.is_mbgp_cap_valid(route_family):
-                for dest in table.itervalues():
+                for dest in table.values():
                     if dest.best_path:
                         peer.communicate_path(dest.best_path)
 
@@ -253,7 +256,7 @@ class PeerManager(object):
             # UPDATE to any peers
             if comm_attr_na:
                 LOG.debug('New best path has community attr. NO_ADVERTISE = %s'
-                          '. Hence not advertising to any peer' % comm_attr_na)
+                          '. Hence not advertising to any peer', comm_attr_na)
                 return
 
         qualified_peers = self._collect_peers_of_interest(
@@ -287,7 +290,7 @@ class PeerManager(object):
             # Peers that have RTC capability and have common RT with the path
             # also qualify
             peer_to_rtfilter_map = self._peer_to_rtfilter_map
-            for peer, rt_filter in peer_to_rtfilter_map.iteritems():
+            for peer, rt_filter in peer_to_rtfilter_map.items():
                 # Ignore Network Controller (its not a BGP peer)
                 if peer is None:
                     continue

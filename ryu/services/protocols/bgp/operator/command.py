@@ -3,8 +3,9 @@ import json
 import logging
 import pprint
 import re
+import six
 
-(STATUS_OK, STATUS_ERROR) = xrange(2)
+(STATUS_OK, STATUS_ERROR) = range(2)
 
 CommandsResponse = namedtuple('CommandsResponse', ['status', 'value'])
 
@@ -40,9 +41,9 @@ class Command(object):
     """
 
     help_msg = ''
-    param_help_msg = None
+    param_help_msg = ''
     command = ''
-    cli_resp_line_template = '{0}: {1}\n\n'
+    cli_resp_line_template = '{0}: {1}\n'
 
     def __init__(self, api=None, parent=None,
                  help_formatter=default_help_formatter,
@@ -109,7 +110,7 @@ class Command(object):
 
         if resp.status == STATUS_OK:
 
-            if type(resp.value) in (str, bool, int, float, unicode):
+            if type(resp.value) in (str, bool, int, float, six.text_type):
                 return str(resp.value)
 
             ret = ''
@@ -117,7 +118,7 @@ class Command(object):
             if not isinstance(val, list):
                 val = [val]
             for line in val:
-                for k, v in line.iteritems():
+                for k, v in line.items():
                     if isinstance(v, dict):
                         ret += cls.cli_resp_line_template.format(
                             k, '\n' + pprint.pformat(v)
@@ -194,7 +195,7 @@ class Command(object):
             ret.append(self._quick_help())
 
         if len(self.subcommands) > 0:
-            for k, _ in sorted(self.subcommands.iteritems()):
+            for k, _ in sorted(self.subcommands.items()):
                 command_path, param_help, cmd_help = \
                     self._instantiate_subcommand(k)._quick_help(nested=True)
                 if command_path or param_help or cmd_help:
@@ -245,7 +246,7 @@ class TextFilter(object):
                 iterator = enumerate(action_resp_value)
             else:
                 resp = dict(action_resp_value)
-                iterator = action_resp_value.iteritems()
+                iterator = iter(action_resp_value.items())
 
             remove = []
 
@@ -257,8 +258,9 @@ class TextFilter(object):
                 resp = [resp[key] for key, value in enumerate(resp)
                         if key not in remove]
             else:
-                resp = {key: value for key, value in resp.iteritems()
-                        if key not in remove}
+                resp = dict([(key, value)
+                             for key, value in resp.items()
+                             if key not in remove])
 
             return resp
         else:

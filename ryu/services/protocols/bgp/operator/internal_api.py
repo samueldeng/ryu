@@ -7,6 +7,13 @@ from ryu.lib.packet.bgp import RF_IPv6_UC
 from ryu.lib.packet.bgp import RF_IPv4_VPN
 from ryu.lib.packet.bgp import RF_IPv6_VPN
 from ryu.lib.packet.bgp import RF_RTC_UC
+from ryu.lib.packet.bgp import BGP_ATTR_TYPE_ORIGIN
+from ryu.lib.packet.bgp import BGP_ATTR_TYPE_AS_PATH
+from ryu.lib.packet.bgp import BGP_ATTR_TYPE_MULTI_EXIT_DISC
+from ryu.lib.packet.bgp import BGP_ATTR_TYPE_LOCAL_PREF
+from ryu.lib.packet.bgp import BGP_ATTR_ORIGIN_IGP
+from ryu.lib.packet.bgp import BGP_ATTR_ORIGIN_EGP
+from ryu.lib.packet.bgp import BGP_ATTR_ORIGIN_INCOMPLETE
 
 from ryu.services.protocols.bgp.base import add_bgp_error_metadata
 from ryu.services.protocols.bgp.base import BGPSException
@@ -40,7 +47,7 @@ class InternalApi(object):
         vrf_name = vrf_name.encode('ascii', 'ignore')
 
         route_count = \
-            len([d for d in vrf.itervalues() if d.best_path])
+            len([d for d in vrf.values() if d.best_path])
         return {str((vrf_name, vrf_rf)): route_count}
 
     def get_vrfs_conf(self):
@@ -49,7 +56,7 @@ class InternalApi(object):
     def get_all_vrf_routes(self):
         vrfs = self._get_vrf_tables()
         ret = {}
-        for (vrf_id, vrf_rf), table in sorted(vrfs.iteritems()):
+        for (vrf_id, vrf_rf), table in sorted(vrfs.items()):
             ret[str((vrf_id, vrf_rf))] = self._get_single_vrf_routes(table)
         return ret
 
@@ -57,10 +64,10 @@ class InternalApi(object):
         vrf = self._get_vrf_table(vrf_id, vrf_rf)
         if not vrf:
             raise WrongParamError('wrong vpn name %s' % str((vrf_id, vrf_rf)))
-        return [self._dst_to_dict(d) for d in vrf.itervalues()]
+        return [self._dst_to_dict(d) for d in vrf.values()]
 
     def _get_single_vrf_routes(self, vrf_table):
-        return [self._dst_to_dict(d) for d in vrf_table.itervalues()]
+        return [self._dst_to_dict(d) for d in vrf_table.values()]
 
     def _get_vrf_table(self, vrf_name, vrf_rf):
         return CORE_MANAGER.get_core_service()\
@@ -85,7 +92,7 @@ class InternalApi(object):
         gtable = table_manager.get_global_table_by_route_family(rf)
         if gtable is not None:
             return [self._dst_to_dict(dst)
-                    for dst in sorted(gtable.itervalues())]
+                    for dst in sorted(gtable.values())]
         else:
             return []
 
@@ -94,9 +101,26 @@ class InternalApi(object):
                'prefix': dst.nlri.formatted_nlri_str}
 
         def _path_to_dict(dst, path):
-            aspath = path.get_pattr(BGP_ATTR_TYPE_AS_PATH).path_seg_list
-            if aspath is None or len(aspath) == 0:
+
+            path_seg_list = path.get_pattr(BGP_ATTR_TYPE_AS_PATH).path_seg_list
+
+            if type(path_seg_list) == list:
+                aspath = []
+                for as_path_seg in path_seg_list:
+                    for as_num in as_path_seg:
+                        aspath.append(as_num)
+            else:
                 aspath = ''
+
+            origin = path.get_pattr(BGP_ATTR_TYPE_ORIGIN)
+            origin = origin.value if origin else None
+
+            if origin == BGP_ATTR_ORIGIN_IGP:
+                origin = 'i'
+            elif origin == BGP_ATTR_ORIGIN_EGP:
+                origin = 'e'
+            elif origin == BGP_ATTR_ORIGIN_INCOMPLETE:
+                origin = '?'
 
             nexthop = path.nexthop
             # Get the MED path attribute
@@ -104,12 +128,25 @@ class InternalApi(object):
             med = med.value if med else ''
             # Get best path reason
             bpr = dst.best_path_reason if path == dst.best_path else ''
+
+            # Get local preference
+            localpref = path.get_pattr(BGP_ATTR_TYPE_LOCAL_PREF)
+            localpref = localpref.value if localpref else ''
+
+            if hasattr(path.nlri, 'label_list'):
+                labels = path.nlri.label_list
+            else:
+                labels = None
+
             return {'best': (path == dst.best_path),
                     'bpr': bpr,
                     'prefix': path.nlri.formatted_nlri_str,
+                    'labels': labels,
                     'nexthop': nexthop,
                     'metric': med,
-                    'aspath': aspath}
+                    'aspath': aspath,
+                    'origin': origin,
+                    'localpref': localpref}
 
         for path in dst.known_path_list:
             ret['paths'].append(_path_to_dict(dst, path))

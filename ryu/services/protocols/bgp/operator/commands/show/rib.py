@@ -5,16 +5,17 @@ from ryu.services.protocols.bgp.operator.command import CommandsResponse
 from ryu.services.protocols.bgp.operator.command import STATUS_ERROR
 from ryu.services.protocols.bgp.operator.command import STATUS_OK
 
+from ryu.services.protocols.bgp.base import ActivityException
 from ryu.services.protocols.bgp.operator.commands.responses import \
     WrongParamResp
 
 
 class RibBase(Command, RouteFormatterMixin):
-    supported_families = ['ipv4', 'vpnv4', 'rtfilter', 'vpnv6']
+    supported_families = ['ipv4', 'ipv6', 'vpnv4', 'rtfilter', 'vpnv6']
 
 
 class Rib(RibBase):
-    help_msg = 'show all routes for address family (only vpnv4 supported)'
+    help_msg = 'show all routes for address family'
     param_help_msg = '<address-family>'
     command = 'rib'
 
@@ -50,16 +51,19 @@ class Rib(RibBase):
             if len(params) != 0:
                 return WrongParamResp()
             ret = {}
-            for family in self.supported_families:
-                ret[family] = self.api.get_single_rib_routes(family)
-            return CommandsResponse(STATUS_OK, ret)
+            try:
+                for family in self.supported_families:
+                    ret[family] = self.api.get_single_rib_routes(family)
+                return CommandsResponse(STATUS_OK, ret)
+            except ActivityException as e:
+                return CommandsResponse(STATUS_ERROR, e)
 
         @classmethod
         def cli_resp_formatter(cls, resp):
             if resp.status == STATUS_ERROR:
                 return RibBase.cli_resp_formatter(resp)
             ret = cls._format_family_header()
-            for family, data in resp.value.iteritems():
+            for family, data in resp.value.items():
                 ret += 'Family: {0}\n'.format(family)
                 ret += cls._format_family(data)
             return ret
